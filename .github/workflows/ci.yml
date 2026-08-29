@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Syntax & Lint Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh curl git
+
+      - name: Check Bash scripts syntax
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh
+
+      - name: Check Zsh scripts syntax
+        run: |
+          for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do
+            zsh -n "$f"
+          done
+
+      - name: Test installation script
+        run: |
+          ./install.sh
+
+      - name: Verify generated links
+        run: |
+          test -L "$HOME/.config/zsh"
+          test -L "$HOME/.zshenv"
+          test -L "$HOME/.config/git"
+          test -L "$HOME/.config/mise/config.toml"
+
+      - name: Test uninstallation script
+        run: |
+          ./uninstall.sh
+
+      - name: Verify symlinks removed
+        run: |
+          ! test -L "$HOME/.config/zsh"
+          ! test -L "$HOME/.zshenv"
+          ! test -L "$HOME/.config/git"
+          ! test -L "$HOME/.config/mise/config.toml"
