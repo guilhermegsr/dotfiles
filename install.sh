@@ -12,29 +12,29 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 section() {
-    printf "\n${CYAN}==>${NC} ${BOLD}%s${NC}\n" "$1"
+    printf "\n%b==>%b %b%s%b\n" "$CYAN" "$NC" "$BOLD" "$1" "$NC"
 }
 
 info() {
-    printf "  ${BLUE}[INFO]${NC} %s\n" "$1"
+    printf "  %b[INFO]%b %s\n" "$BLUE" "$NC" "$1"
 }
 
 success() {
-    printf "  ${GREEN}[OK]${NC}   %s\n" "$1"
+    printf "  %b[OK]%b   %s\n" "$GREEN" "$NC" "$1"
 }
 
 warn() {
-    printf "  ${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "  %b[WARN]%b %s\n" "$YELLOW" "$NC" "$1"
 }
 
 error() {
-    printf "  ${RED}[ERROR]${NC} %s\n" "$1" >&2
+    printf "  %b[ERROR]%b %s\n" "$RED" "$NC" "$1" >&2
 }
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-printf "\n${BOLD}${BLUE}=== Dotfiles Installation ===${NC}\n"
-printf "${DIM}Source: %s${NC}\n" "$DOTFILES_DIR"
+printf "\n%b=== Dotfiles Installation ===%b\n" "${BOLD}${BLUE}" "$NC"
+printf "%bSource: %s%b\n" "$DIM" "$DOTFILES_DIR" "$NC"
 
 backup_if_exists() {
     local target="$1"
@@ -191,4 +191,4 @@ else
     fi
 fi
 
-printf "\n${BOLD}${GREEN}✔ Installation finished successfully.${NC}\n\n"
+printf "\n%b✔ Installation finished successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"

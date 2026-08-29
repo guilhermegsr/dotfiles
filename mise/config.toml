@@ -14,6 +14,7 @@ fzf = "latest"
 gh = "latest"
 jq = "latest"
 ripgrep = "latest"
+shellcheck = "latest"
 tmux = "latest"
 zoxide = "latest"
 
