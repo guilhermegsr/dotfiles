@@ -1,0 +1,12 @@
+# Compiled zsh bytecode and dumps
+*.zwc
+*.zwc.old
+.zcompdump*
+zcompdump*
+
+# Backups
+*.bak*
+
+# OS metadata
+.DS_Store
+Thumbs.db
