@@ -1,5 +1,3 @@
-# ~/.config/zsh/config/exports.zsh
-
 export PATH="$HOME/.local/bin:$PATH"
 
 export BROWSER="firefox"

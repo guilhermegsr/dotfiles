@@ -1,5 +1,3 @@
-# ~/.config/zsh/config/history.zsh
-
 HIST_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 HISTFILE="$HIST_DIR/history"
 

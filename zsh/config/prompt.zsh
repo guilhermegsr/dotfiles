@@ -1,24 +1,17 @@
-# ~/.config/zsh/config/prompt.zsh
-
 autoload -Uz vcs_info
 autoload -Uz colors && colors
 
 setopt PROMPT_SUBST
-
-# Git
 
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' formats ' %F{242}on%f %F{magenta}󰘬 %b%f'
 zstyle ':vcs_info:git:*' actionformats ' %F{242}on%f %F{magenta}󰘬 %b%f %F{yellow}(%a)%f'
 
 _git_status() {
-    local git_status
-    local line
-    local staged=0
-    local unstaged=0
-    local untracked=0
+    local git_status line
+    local staged=0 unstaged=0 untracked=0
 
-    git_status="$(git status --porcelain 2>/dev/null)"
+    git_status="$(git status --porcelain 2>/dev/null)" || return
 
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -28,13 +21,8 @@ _git_status() {
             continue
         fi
 
-        if [[ "${line[1]}" != ' ' ]]; then
-            ((staged++))
-        fi
-
-        if [[ "${line[2]}" != ' ' ]]; then
-            ((unstaged++))
-        fi
+        [[ "${line[1]}" != ' ' ]] && ((staged++))
+        [[ "${line[2]}" != ' ' ]] && ((unstaged++))
     done <<< "$git_status"
 
     (( staged > 0 || unstaged > 0 || untracked > 0 )) || return
@@ -48,7 +36,6 @@ _git_status() {
 
 _git_repo_name() {
     local root
-
     root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
     print -n "${root:t}"
 }
@@ -57,8 +44,6 @@ _is_git_repo() {
     git rev-parse --is-inside-work-tree &>/dev/null
 }
 
-# Path
-
 _prompt_path() {
     if _is_git_repo; then
         _git_repo_name
@@ -66,8 +51,6 @@ _prompt_path() {
         print -n "%2~"
     fi
 }
-
-# Prompt
 
 _prompt_update() {
     vcs_info
