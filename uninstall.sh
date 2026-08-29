@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -49,7 +48,6 @@ unlink_file() {
 
 restore_latest_backup() {
     local target="$1"
-    # Look for matching backup files sorted by creation time
     local latest_backup
     latest_backup="$(find "$(dirname "$target")" -maxdepth 1 -name "$(basename "$target").bak.*" 2>/dev/null | sort | tail -n 1)"
     if [[ -n "$latest_backup" && -e "$latest_backup" ]]; then
@@ -59,26 +57,31 @@ restore_latest_backup() {
     fi
 }
 
-# 1. Remove Zsh symlinks
+# Zsh
 unlink_file "$DOTFILES_DIR/zsh" "$HOME/.config/zsh"
 restore_latest_backup "$HOME/.config/zsh"
 
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
-# 2. Restore default shell to bash if current is zsh
+# Mise
+unlink_file "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
+restore_latest_backup "$HOME/.config/mise/config.toml"
+
+# Restore default shell to Bash if current is Zsh
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
 BASH_PATH="$(command -v bash 2>/dev/null || true)"
 
 if [[ -n "$BASH_PATH" && -n "$ZSH_PATH" ]]; then
+    CURRENT_USER="${USER:-$(whoami 2>/dev/null || echo "$LOGNAME")}"
     CURRENT_SHELL=""
     if command -v getent >/dev/null 2>&1; then
-        CURRENT_SHELL="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7 || true)"
+        CURRENT_SHELL="$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f7 || true)"
     fi
     [[ -z "$CURRENT_SHELL" ]] && CURRENT_SHELL="${SHELL:-}"
 
     if [[ "$CURRENT_SHELL" == "$ZSH_PATH" ]]; then
-        info "Changing default shell back to $BASH_PATH..."
+        info "Restoring default shell to $BASH_PATH..."
         if command -v chsh >/dev/null 2>&1; then
             if chsh -s "$BASH_PATH"; then
                 success "Default shell restored to $BASH_PATH"

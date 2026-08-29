@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -63,19 +62,47 @@ link_file() {
     success "Linked '$dest' -> '$src'"
 }
 
-# 1. Zsh configuration
+# Zsh
 link_file "$DOTFILES_DIR/zsh" "$HOME/.config/zsh"
 link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 
-# 2. Check Zsh installation
+# Mise
+link_file "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
+
+# Bootstrap mise if missing
+export PATH="$HOME/.local/bin:$PATH"
+MISE_BIN="$(command -v mise 2>/dev/null || true)"
+
+if [[ -z "$MISE_BIN" ]]; then
+    if command -v curl >/dev/null 2>&1; then
+        info "Installing Mise..."
+        curl -fsSL https://mise.run | sh
+        MISE_BIN="$HOME/.local/bin/mise"
+        success "Mise installed to $MISE_BIN"
+    else
+        warn "'curl' not found. Install mise manually: https://mise.jdx.dev"
+    fi
+fi
+
+if [[ -n "$MISE_BIN" && -x "$MISE_BIN" ]]; then
+    info "Provisioning tools via Mise..."
+    if "$MISE_BIN" install; then
+        success "Mise tools installed"
+    else
+        warn "Some Mise tools failed to install. Run 'mise install' manually."
+    fi
+fi
+
+# Set Zsh as default shell
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
 
 if [[ -z "$ZSH_PATH" ]]; then
-    warn "Zsh is not installed. Please install Zsh and rerun this script or set it as default shell."
+    warn "Zsh is not installed. Please install Zsh and set it as your default shell."
 else
+    CURRENT_USER="${USER:-$(whoami 2>/dev/null || echo "$LOGNAME")}"
     CURRENT_SHELL=""
     if command -v getent >/dev/null 2>&1; then
-        CURRENT_SHELL="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7 || true)"
+        CURRENT_SHELL="$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f7 || true)"
     fi
     [[ -z "$CURRENT_SHELL" ]] && CURRENT_SHELL="${SHELL:-}"
 
@@ -88,7 +115,7 @@ else
                 warn "Could not change default shell automatically. Run: chsh -s $ZSH_PATH"
             fi
         else
-            warn "'chsh' command not found. Please set $ZSH_PATH as your default shell manually."
+            warn "'chsh' command not found. Please set $ZSH_PATH as default shell manually."
         fi
     else
         info "Zsh is already the default shell ($ZSH_PATH)"
