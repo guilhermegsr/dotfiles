@@ -1,25 +1,21 @@
-# ==============================================================================
-# Utility Functions
-# ==============================================================================
-
-# Create a new directory and change into it
+# Mkdir and cd into directory in one step
 mkcd() {
-    if [[ -z "$1" ]]; then
-        echo "Usage: mkcd <directory_path>" >&2
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: mkcd <directory>" >&2
         return 1
     fi
     mkdir -p "$1" && cd "$1"
 }
 
-# Universal archive extractor
+# Universal archive extraction utility
 extract() {
-    if [[ -z "$1" ]]; then
+    if [[ -z "${1:-}" ]]; then
         echo "Usage: extract <archive_file>" >&2
         return 1
     fi
 
     if [[ ! -f "$1" ]]; then
-        echo "Error: '$1' is not a valid file." >&2
+        echo "Error: File '$1' not found or is not a regular file." >&2
         return 1
     fi
 
@@ -37,13 +33,13 @@ extract() {
         *.7z)        7z x "$1"           ;;
         *.tar.xz)    tar xJf "$1"        ;;
         *.tar.zst)   tar --zstd -xf "$1" ;;
-        *)           echo "Error: Unable to extract '$1' (unsupported archive format)." >&2; return 1 ;;
+        *)           echo "Error: Unsupported archive format for '$1'." >&2; return 1 ;;
     esac
 }
 
-# Find process listening on a specific port
+# Identify process listening on a given port
 port() {
-    if [[ -z "$1" ]]; then
+    if [[ -z "${1:-}" ]]; then
         echo "Usage: port <port_number>" >&2
         return 1
     fi
@@ -55,12 +51,12 @@ port() {
     elif command -v netstat >/dev/null 2>&1; then
         netstat -tulpn | grep ":$1\b"
     else
-        echo "Error: Neither 'lsof', 'ss', nor 'netstat' found." >&2
+        echo "Error: 'lsof', 'ss', or 'netstat' required to inspect listening ports." >&2
         return 1
     fi
 }
 
-# Show local and public IP addresses
+# Resolve local and public IP addresses
 myip() {
     printf "Local IP:  "
     if command -v ip >/dev/null 2>&1; then
@@ -75,14 +71,14 @@ myip() {
     if command -v curl >/dev/null 2>&1; then
         curl -fsS --max-time 3 https://icanhazip.com 2>/dev/null || echo "Unavailable"
     else
-        echo "Unavailable (curl required)"
+        echo "Unavailable (requires curl)"
     fi
 }
 
-# Delete merged local git branches
+# Interactively remove merged local Git branches against upstream default branch
 git-clean-branches() {
     if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        echo "Error: Not inside a Git repository." >&2
+        echo "Error: Not inside a Git work tree." >&2
         return 1
     fi
 
@@ -94,18 +90,18 @@ git-clean-branches() {
     branches_to_delete="$(git branch --merged "$main_branch" 2>/dev/null | grep -vE "^\*|\b(main|master|develop)\b" | sed 's/^[[:space:]]*//' || true)"
 
     if [[ -z "$branches_to_delete" ]]; then
-        echo "No merged local branches to delete."
+        echo "No merged local branches to prune."
         return 0
     fi
 
-    echo "Merged branches to delete:"
+    echo "Local branches merged into '$main_branch':"
     echo "$branches_to_delete"
     echo ""
-    read -r "response?Delete these branches? [y/N]: "
+    read -r "response?Prune these branches? [y/N]: "
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo "$branches_to_delete" | xargs git branch -d
-        echo "Merged branches deleted."
+        echo "Branches pruned successfully."
     else
-        echo "Cancelled."
+        echo "Aborted."
     fi
 }

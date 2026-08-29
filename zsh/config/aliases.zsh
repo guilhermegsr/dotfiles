@@ -1,4 +1,3 @@
-# Modern CLI replacements
 if command -v eza >/dev/null 2>&1; then
     alias ls='eza --icons --color=auto -l'
     alias la='eza --icons --color=auto -la'
@@ -27,13 +26,11 @@ if command -v zoxide >/dev/null 2>&1; then
     alias cd='z'
 fi
 
-# Navigation
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
 
-# Utilities
 alias df='df -h'
 alias free='free -h'
 alias mkdir='mkdir -p'

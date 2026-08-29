@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y zsh curl git shellcheck
@@ -24,12 +24,12 @@ jobs:
         run: |
           shellcheck install.sh uninstall.sh
 
-      - name: Check Bash scripts syntax
+      - name: Validate Bash script syntax
         run: |
           bash -n install.sh
           bash -n uninstall.sh
 
-      - name: Check Zsh scripts syntax
+      - name: Validate Zsh script syntax
         run: |
           for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do
             zsh -n "$f"
@@ -39,20 +39,22 @@ jobs:
         run: |
           ./install.sh
 
-      - name: Verify generated links
+      - name: Verify generated symlinks
         run: |
           test -L "$HOME/.config/zsh"
           test -L "$HOME/.zshenv"
           test -L "$HOME/.config/git"
           test -L "$HOME/.config/mise/config.toml"
+          test -L "$HOME/.config/tmux"
 
       - name: Test uninstallation script
         run: |
           ./uninstall.sh
 
-      - name: Verify symlinks removed
+      - name: Verify symlink teardown
         run: |
           ! test -L "$HOME/.config/zsh"
           ! test -L "$HOME/.zshenv"
           ! test -L "$HOME/.config/git"
           ! test -L "$HOME/.config/mise/config.toml"
+          ! test -L "$HOME/.config/tmux"

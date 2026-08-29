@@ -1,26 +1,26 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install uninstall lint check test update
+.PHONY: help install uninstall lint check update
 
-help: ## Show this help message
+help: ## Display available targets with descriptions
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install dotfiles and create symlinks
+install: ## Execute idempotent dotfiles installation
 	@./install.sh
 
-uninstall: ## Uninstall dotfiles and restore backups
+uninstall: ## Revert symlinks, remove dotfiles-managed assets, and restore backups
 	@./uninstall.sh
 
-lint: ## Validate syntax and style for Shell and Zsh scripts
-	@echo "==> Running ShellCheck..."
+lint: ## Run static analysis and syntax validation across Bash and Zsh files
+	@echo "==> Running ShellCheck analysis..."
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		shellcheck install.sh uninstall.sh; \
 	else \
-		echo "ShellCheck not found, skipping static analysis."; \
+		echo "Notice: ShellCheck not found in PATH; skipping static analysis."; \
 	fi
-	@echo "==> Checking Bash syntax..."
+	@echo "==> Validating Bash script syntax..."
 	@bash -n install.sh uninstall.sh
-	@echo "==> Checking Zsh syntax..."
+	@echo "==> Validating Zsh script syntax..."
 	@for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do \
 		zsh -n "$$f" || exit 1; \
 	done
@@ -28,15 +28,15 @@ lint: ## Validate syntax and style for Shell and Zsh scripts
 
 check: lint ## Alias for lint
 
-update: ## Upgrade Mise tools and pull latest Zsh plugins
+update: ## Upgrade Mise-managed toolchains and pull upstream Zsh plugins
 	@echo "==> Upgrading tools managed by Mise..."
 	@if command -v mise >/dev/null 2>&1; then mise upgrade; fi
-	@echo "==> Updating Zsh plugins..."
+	@echo "==> Pulling latest updates for Zsh plugins..."
 	@PLUGIN_DIR="$${XDG_DATA_HOME:-$$HOME/.local/share}/zsh/plugins"; \
 	for plugin in "$$PLUGIN_DIR"/*; do \
 		if [ -d "$$plugin/.git" ]; then \
 			echo "Updating $$(basename "$$plugin")..."; \
-			git -C "$$plugin" pull --ff-only --quiet || echo "Warning: Could not update $$(basename "$$plugin")"; \
+			git -C "$$plugin" pull --ff-only --quiet || echo "Warning: Failed to update $$(basename "$$plugin")"; \
 		fi \
 	done
-	@echo "==> Updates completed successfully!"
+	@echo "==> Update process completed!"

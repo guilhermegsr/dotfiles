@@ -4,12 +4,12 @@ autoload -Uz colors && colors
 
 setopt PROMPT_SUBST
 
-# VCS info styling
+# VCS Git formatting
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' formats ' %F{242}on%f %F{magenta}󰘬 %b%f'
 zstyle ':vcs_info:git:*' actionformats ' %F{242}on%f %F{magenta}󰘬 %b%f %F{yellow}(%a)%f'
 
-# Command execution timer
+# Command execution timer (tracks commands taking >= 2.0s)
 typeset -g _cmd_start_time=0
 typeset -g PROMPT_CMD_DURATION=""
 
@@ -34,6 +34,7 @@ _cmd_duration() {
     fi
 }
 
+# Upstream divergence resolution (ahead/behind counts)
 _git_divergence() {
     local counts
     counts="$(git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)" || return
@@ -46,6 +47,7 @@ _git_divergence() {
     print -n " ${(j: :)parts}"
 }
 
+# Working tree porcelain status parser (+ staged, * unstaged, ? untracked)
 _git_status() {
     local git_status line
     local staged=0 unstaged=0 untracked=0
@@ -74,6 +76,7 @@ _git_status() {
     print -n " [${(j: :)indicators}]"
 }
 
+# Assemble prompt context on precmd
 _prompt_update() {
     vcs_info
     PROMPT_CMD_DURATION="$(_cmd_duration)"
@@ -102,7 +105,7 @@ precmd() {
     _prompt_update
 }
 
-# Two-line minimal prompt with right prompt for command duration
+# Two-line layout with exit code status glyph and duration in RPROMPT
 PROMPT='%F{242}in%f %F{cyan}${PROMPT_PATH}%f${vcs_info_msg_0_}${PROMPT_GIT_DIVERGENCE}${PROMPT_GIT_STATUS}
  %(?:%F{green}󱞩%f:%F{red}󱞩 [%?]%f) '
 

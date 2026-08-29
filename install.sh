@@ -33,7 +33,7 @@ error() {
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-printf "\n${BOLD}${BLUE}=== Installing Dotfiles ===${NC}\n"
+printf "\n${BOLD}${BLUE}=== Dotfiles Installation ===${NC}\n"
 printf "${DIM}Source: %s${NC}\n" "$DOTFILES_DIR"
 
 backup_if_exists() {
@@ -42,7 +42,7 @@ backup_if_exists() {
         local timestamp
         timestamp="$(date +%Y%m%d_%H%M%S)"
         local backup="${target}.bak.${timestamp}"
-        warn "Backing up existing '$target' to '$backup'"
+        warn "Backing up existing non-symlink target '$target' to '$backup'"
         mv "$target" "$backup"
     fi
 }
@@ -57,10 +57,10 @@ link_file() {
         local current_target
         current_target="$(readlink "$dest")"
         if [[ "$current_target" == "$src" ]]; then
-            info "'$dest' is already linked to '$src'"
+            info "'$dest' already correctly linked"
             return 0
         fi
-        warn "Replacing existing symlink '$dest' (was pointing to '$current_target')"
+        warn "Replacing stale symlink '$dest' (points to '$current_target')"
         rm "$dest"
     elif [[ -e "$dest" ]]; then
         backup_if_exists "$dest"
@@ -73,41 +73,38 @@ link_file() {
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-# 1. Symlinks
-section "Configuring symlinks..."
+section "Deploying symlinks..."
 link_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
 link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 link_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
 link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 link_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 
-# 2. Zsh Plugins
 section "Setting up Zsh plugins..."
 PLUGIN_DIR="$DATA_DIR/zsh/plugins"
 mkdir -p "$PLUGIN_DIR"
 
 if [[ ! -d "$PLUGIN_DIR/zsh-autosuggestions" ]]; then
     if command -v git >/dev/null 2>&1; then
-        info "Installing zsh-autosuggestions..."
+        info "Cloning zsh-autosuggestions..."
         git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions "$PLUGIN_DIR/zsh-autosuggestions"
         success "Installed zsh-autosuggestions"
     fi
 else
-    info "zsh-autosuggestions is already installed"
+    info "zsh-autosuggestions already installed"
 fi
 
 if [[ ! -d "$PLUGIN_DIR/zsh-syntax-highlighting" ]]; then
     if command -v git >/dev/null 2>&1; then
-        info "Installing zsh-syntax-highlighting..."
+        info "Cloning zsh-syntax-highlighting..."
         git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting "$PLUGIN_DIR/zsh-syntax-highlighting"
         success "Installed zsh-syntax-highlighting"
     fi
 else
-    info "zsh-syntax-highlighting is already installed"
+    info "zsh-syntax-highlighting already installed"
 fi
 
-# 3. Nerd Font (JetBrains Mono)
-section "Configuring Nerd Font..."
+section "Setting up Nerd Fonts..."
 FONT_DIR=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
     FONT_DIR="$HOME/Library/Fonts"
@@ -116,10 +113,10 @@ else
 fi
 
 if find "$FONT_DIR" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" 2>/dev/null | grep -q .; then
-    info "JetBrainsMono Nerd Font is already installed"
+    info "JetBrainsMono Nerd Font already present"
 else
     if command -v curl >/dev/null 2>&1 && command -v tar >/dev/null 2>&1; then
-        info "Installing JetBrainsMono Nerd Font..."
+        info "Downloading JetBrainsMono Nerd Font..."
         mkdir -p "$FONT_DIR"
         FONT_TEMP="$(mktemp -d)"
         FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
@@ -131,47 +128,45 @@ else
             fi
             success "Installed JetBrainsMono Nerd Font"
         else
-            warn "Could not download JetBrainsMono Nerd Font. Install manually if needed."
+            warn "Failed to download JetBrainsMono Nerd Font; skipping"
             rm -rf "$FONT_TEMP"
         fi
     else
-        warn "'curl' or 'tar' not found. Skipping JetBrainsMono Nerd Font installation."
+        warn "Missing 'curl' or 'tar'; skipping automatic font installation"
     fi
 fi
 
-# 4. Bootstrap Mise and Tools
-section "Setting up Mise & Toolchains..."
+section "Configuring Mise runtimes and tools..."
 export PATH="$HOME/.local/bin:$PATH"
 MISE_BIN="$(command -v mise 2>/dev/null || true)"
 
 if [[ -z "$MISE_BIN" ]]; then
     if command -v curl >/dev/null 2>&1; then
-        info "Installing Mise..."
+        info "Bootstrapping Mise CLI..."
         curl -fsSL https://mise.run | sh
         MISE_BIN="$HOME/.local/bin/mise"
         success "Mise installed to $MISE_BIN"
     else
-        warn "'curl' not found. Install mise manually: https://mise.jdx.dev"
+        warn "Missing 'curl'; please install Mise manually: https://mise.jdx.dev"
     fi
 else
-    info "Mise binary found at $MISE_BIN"
+    info "Mise detected at $MISE_BIN"
 fi
 
 if [[ -n "$MISE_BIN" && -x "$MISE_BIN" ]]; then
-    info "Provisioning tools via Mise..."
+    info "Provisioning declared tools via Mise..."
     if "$MISE_BIN" install; then
-        success "Mise tools installed successfully"
+        success "All Mise tools provisioned successfully"
     else
-        warn "Some Mise tools failed to install. Run 'mise install' manually."
+        warn "Mise tool provisioning encountered errors. Run 'mise install' to inspect."
     fi
 fi
 
-# 5. Default Shell
-section "Configuring default shell..."
+section "Configuring default login shell..."
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
 
 if [[ -z "$ZSH_PATH" ]]; then
-    warn "Zsh is not installed. Please install Zsh and set it as your default shell."
+    warn "Zsh executable not found in PATH; please install Zsh manually"
 else
     CURRENT_USER="${USER:-$(whoami 2>/dev/null || echo "$LOGNAME")}"
     CURRENT_SHELL=""
@@ -181,19 +176,19 @@ else
     [[ -z "$CURRENT_SHELL" ]] && CURRENT_SHELL="${SHELL:-}"
 
     if [[ "$CURRENT_SHELL" != "$ZSH_PATH" ]]; then
-        info "Changing default shell to $ZSH_PATH..."
+        info "Updating login shell to $ZSH_PATH..."
         if command -v chsh >/dev/null 2>&1; then
             if chsh -s "$ZSH_PATH"; then
-                success "Default shell changed to $ZSH_PATH"
+                success "Default shell updated to $ZSH_PATH"
             else
-                warn "Could not change default shell automatically. Run: chsh -s $ZSH_PATH"
+                warn "Failed to change shell automatically. Run: chsh -s $ZSH_PATH"
             fi
         else
-            warn "'chsh' command not found. Please set $ZSH_PATH as default shell manually."
+            warn "'chsh' utility not found; update login shell manually"
         fi
     else
-        info "Zsh is already the default shell ($ZSH_PATH)"
+        info "Zsh is already the default login shell ($ZSH_PATH)"
     fi
 fi
 
-printf "\n${BOLD}${GREEN}✔ Dotfiles installation completed successfully!${NC}\n\n"
+printf "\n${BOLD}${GREEN}✔ Installation finished successfully.${NC}\n\n"
