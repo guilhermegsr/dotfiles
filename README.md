@@ -11,7 +11,7 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
   * Bytecode-compiled (`.zwc`) `compinit` completion system with daily cache regeneration.
   * Fish-like **Autosuggestions** (`zsh-autosuggestions`) and real-time **Syntax Highlighting** (`zsh-syntax-highlighting`).
   * Prefix-based history search via $\uparrow$ / $\downarrow$ arrows.
-  * Custom lightweight prompt with Git branch, relative repo paths, porcelain status indicators, and return codes.
+  * Custom lightweight two-line prompt with Git branch, ahead/behind upstream divergence, porcelain status, command execution timing, and return codes.
   * Untracked local override support (`~/.config/zsh/local.zsh`) for machine-specific tokens and aliases.
 * **Version Control (Git):**
   * Global XDG configuration in `~/.config/git/config`.
