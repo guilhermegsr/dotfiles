@@ -32,7 +32,8 @@ zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 # Regenerate zcompdump at most once a day
-if [[ -n "$ZCOMPDUMP"(#qN.m+1) ]]; then
+setopt EXTENDED_GLOB
+if [[ ! -f "$ZCOMPDUMP" || -n "$ZCOMPDUMP"(#qN.m+1) ]]; then
     compinit -d "$ZCOMPDUMP"
     touch "$ZCOMPDUMP"
 else
