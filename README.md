@@ -38,6 +38,8 @@ cd ~/.dotfiles
 
 ### Tmux Shortcuts
 * `Ctrl+b` $\to$ `|` / `-` — Split pane vertically / horizontally (preserves active directory).
+* `Ctrl+b` $\to$ `H` / `V` — Force layout to even horizontal (columns) / even vertical (rows).
+* `Ctrl+b` $\to$ `Espaço` — Cycle through all 5 pane layouts.
 * `Ctrl+b` $\to$ `c` — New window (auto-named by active process).
 * `Ctrl+b` $\to$ `,` — Rename active window manually.
 * `Ctrl+b` $\to$ `.` — Restore automatic window renaming.
