@@ -1,0 +1,19 @@
+[tools]
+# Runtimes & Languages
+bun = "latest"
+node = "lts"
+python = "3.12"
+rust = "stable"
+uv = "latest"
+
+# CLI Tools
+bat = "latest"
+eza = "latest"
+fd = "latest"
+fzf = "latest"
+jq = "latest"
+ripgrep = "latest"
+zoxide = "latest"
+
+[settings]
+legacy_version_file = true
