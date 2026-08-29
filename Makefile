@@ -26,7 +26,7 @@ lint: ## Run static analysis and syntax validation across Bash and Zsh files
 	@for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do \
 		zsh -n "$$f" || exit 1; \
 	done
-	@echo "==> All scripts passed validation!"
+	@echo "==> All scripts passed validation."
 
 check: lint ## Alias for lint
 
@@ -41,4 +41,4 @@ update: ## Upgrade Mise-managed toolchains and pull upstream Zsh plugins
 			git -C "$$plugin" pull --ff-only --quiet || echo "Warning: Failed to update $$(basename "$$plugin")"; \
 		fi \
 	done
-	@echo "==> Update process completed!"
+	@echo "==> Update process completed."

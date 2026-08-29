@@ -34,3 +34,7 @@ alias .....='cd ../../../..'
 alias df='df -h'
 alias free='free -h'
 alias mkdir='mkdir -p'
+
+# SSH
+alias ssh-keys='ssh-add -l'
+alias ssh-clean='rm -rf ~/.ssh/sockets/*'

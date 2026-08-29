@@ -89,6 +89,9 @@ restore_latest_backup "$CONFIG_DIR/tmux"
 unlink_file "$DOTFILES_DIR/alacritty" "$CONFIG_DIR/alacritty"
 restore_latest_backup "$CONFIG_DIR/alacritty"
 
+unlink_file "$DOTFILES_DIR/ssh/config" "$HOME/.ssh/config"
+restore_latest_backup "$HOME/.ssh/config"
+
 section "Removing installed fonts..."
 FONT_DIR=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -136,4 +139,4 @@ if [[ -n "$BASH_PATH" && -n "$ZSH_PATH" ]]; then
     fi
 fi
 
-printf "\n%b✔ Uninstallation finished successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"
+printf "\n%bUninstallation completed successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"

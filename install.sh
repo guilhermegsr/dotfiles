@@ -81,6 +81,20 @@ link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 link_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 link_file "$DOTFILES_DIR/alacritty" "$CONFIG_DIR/alacritty"
 
+section "Configuring SSH environment..."
+SSH_DIR="$HOME/.ssh"
+mkdir -p "$SSH_DIR/keys/personal" "$SSH_DIR/keys/work" "$SSH_DIR/keys/servers" "$SSH_DIR/sockets"
+chmod 700 "$SSH_DIR" "$SSH_DIR/keys" "$SSH_DIR/keys/personal" "$SSH_DIR/keys/work" "$SSH_DIR/keys/servers" "$SSH_DIR/sockets" 2>/dev/null || true
+
+link_file "$DOTFILES_DIR/ssh/config" "$SSH_DIR/config"
+chmod 600 "$DOTFILES_DIR/ssh/config" 2>/dev/null || true
+
+if [[ ! -f "$SSH_DIR/config.local" ]]; then
+    touch "$SSH_DIR/config.local"
+    chmod 600 "$SSH_DIR/config.local"
+    info "Initialized '$SSH_DIR/config.local' for local overrides"
+fi
+
 section "Setting up Zsh plugins..."
 PLUGIN_DIR="$DATA_DIR/zsh/plugins"
 mkdir -p "$PLUGIN_DIR"
@@ -200,4 +214,4 @@ else
     info "Alacritty is not installed (config deployed to $CONFIG_DIR/alacritty)"
 fi
 
-printf "\n%b✔ Installation finished successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"
+printf "\n%bInstallation completed successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"
