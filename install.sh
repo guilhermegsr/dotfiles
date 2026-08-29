@@ -79,6 +79,7 @@ link_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
 link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 link_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
 link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
+link_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 
 # 2. Zsh Plugins
 section "Setting up Zsh plugins..."

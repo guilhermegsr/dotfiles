@@ -21,7 +21,10 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
 * **Tool & Runtime Management ([Mise](https://mise.jdx.dev)):**
   * Declarative configuration in `~/.config/mise/config.toml`.
   * **Runtimes:** Node.js (LTS), Python (3.12), Rust (stable), Bun (latest), uv (latest).
-  * **CLI Tools:** `eza`, `fzf`, `zoxide`, `bat`, `ripgrep`, `fd`, `gh`, `jq`.
+  * **CLI Tools:** `eza`, `fzf`, `zoxide`, `bat`, `ripgrep`, `fd`, `gh`, `jq`, `tmux`.
+* **Multiplexer (Tmux):**
+  * XDG-compliant configuration in `~/.config/tmux/tmux.conf`.
+  * True color (24-bit) support, intuitive splits in current path (`|` and `-`), 1-based indexing, mouse support, vi-mode navigation, and a clean minimal top status bar.
 * **Standard Replacements & Fallbacks:**
   * Modern alternatives for core utilities (`eza` for `ls`, `bat` for `cat`, `rg` for `grep`, `fd` for `find`, `zoxide` for `cd`) with automated fallbacks to POSIX standards if binaries are missing.
   * Dynamic editor detection (`cursor` $\to$ `code` $\to$ `nvim` $\to$ `vim` $\to$ `nano` $\to$ `vi`).
@@ -50,6 +53,8 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
 ├── install.sh              # Idempotent installer with automated backups
 ├── mise/
 │   └── config.toml         # Global runtime and tool declarations
+├── tmux/
+│   └── tmux.conf           # Modern XDG-compliant Tmux configuration
 ├── uninstall.sh            # Safe uninstaller and backup restore
 └── zsh/
     ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
@@ -59,6 +64,7 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
     │   ├── aliases.zsh     # Aliases and CLI replacements
     │   ├── completion.zsh  # Compinit, zstyle, and caching
     │   ├── exports.zsh     # Environment variables and default editor
+    │   ├── functions.zsh   # Shell helper utilities (mkcd, extract, myip, port, etc.)
     │   ├── history.zsh     # History size and behavior
     │   ├── keybindings.zsh # Terminal key mappings and widgets
     │   └── prompt.zsh      # Git-aware custom prompt
@@ -91,11 +97,11 @@ cd ~/.dotfiles
 
 ### What `install.sh` does:
 1. Backs up any existing non-symlink configurations with timestamps (`.bak.YYYYMMDD_HHMMSS`).
-2. Creates symlinks targeting `~/.config/zsh`, `~/.zshenv`, `~/.config/git`, and `~/.config/mise/config.toml`.
+2. Creates symlinks targeting `~/.config/zsh`, `~/.zshenv`, `~/.config/git`, `~/.config/mise/config.toml`, and `~/.config/tmux`.
 3. Clones essential Zsh plugins (`zsh-autosuggestions` & `zsh-syntax-highlighting`) to `~/.local/share/zsh/plugins`.
 4. Installs **JetBrainsMono Nerd Font** directly to `~/.local/share/fonts` (Linux) or `~/Library/Fonts` (macOS) and triggers `fc-cache`.
 5. Installs `mise` if not present on the system.
-6. Executes `mise install` to provision all declared tools and runtimes.
+6. Executes `mise install` to provision all declared tools and runtimes (including `tmux`).
 7. Updates the default shell to `zsh` via `chsh` if necessary.
 
 ---

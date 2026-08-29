@@ -85,6 +85,9 @@ restore_latest_backup "$CONFIG_DIR/git"
 unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 restore_latest_backup "$CONFIG_DIR/mise/config.toml"
 
+unlink_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
+restore_latest_backup "$CONFIG_DIR/tmux"
+
 # 2. Nerd Font
 section "Checking fonts to remove..."
 FONT_DIR=""
