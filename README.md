@@ -1,93 +1,10 @@
 # dotfiles
 
-Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictly to the **XDG Base Directory Specification**.
+> Fast, modular, and strictly XDG-compliant environment built with **Zsh**, **Mise**, **Tmux**, and **Alacritty**.
 
 ---
 
-## Highlights
-
-* **Shell (Zsh):**
-  * Modular layout loaded via `$ZDOTDIR` (`~/.config/zsh`).
-  * Bytecode-compiled (`.zwc`) `compinit` completion system with daily cache regeneration.
-  * Fish-like **Autosuggestions** (`zsh-autosuggestions`) and real-time **Syntax Highlighting** (`zsh-syntax-highlighting`).
-  * Prefix-based history search via $\uparrow$ / $\downarrow$ arrows.
-  * Custom lightweight two-line prompt with Git branch, ahead/behind upstream divergence, porcelain status, command execution timing, and return codes.
-  * Untracked local override support (`~/.config/zsh/local.zsh`) for machine-specific tokens and aliases.
-* **Version Control (Git):**
-  * Global XDG configuration in `~/.config/git/config`.
-  * Modern defaults: `zdiff3` conflict style, `histogram` diff algorithm, `colorMoved`, `rebase.autoStash`, `rerere.enabled` (reuse recorded conflict resolutions), and `fetch.prune`.
-  * Global ignore rules in `~/.config/git/ignore`.
-  * Untracked identity and credentials support via `~/.config/git/config.local`.
-* **Tool & Runtime Management ([Mise](https://mise.jdx.dev)):**
-  * Declarative configuration in `~/.config/mise/config.toml`.
-  * **Runtimes:** Node.js (LTS), Python (3.12), Rust (stable), Bun (latest), uv (latest).
-  * **CLI Tools:** `eza`, `fzf`, `zoxide`, `bat`, `ripgrep`, `fd`, `gh`, `jq`, `tmux`.
-* **Multiplexer (Tmux):**
-  * XDG-compliant configuration in `~/.config/tmux/tmux.conf`.
-  * True color (24-bit) support, intuitive splits in current path (`|` and `-`), 1-based indexing, mouse support, vi-mode navigation, and a clean minimal top status bar.
-* **Standard Replacements & Fallbacks:**
-  * Modern alternatives for core utilities (`eza` for `ls`, `bat` for `cat`, `rg` for `grep`, `fd` for `find`, `zoxide` for `cd`) with automated fallbacks to POSIX standards if binaries are missing.
-  * Dynamic editor detection (`cursor` $\to$ `code` $\to$ `nvim` $\to$ `vim` $\to$ `nano` $\to$ `vi`).
-* **Automation & CI/CD:**
-  * Standardized styling via `.editorconfig`.
-  * Convenience tasks via `Makefile` (`install`, `uninstall`, `lint`, `update`).
-  * Automated syntax and static analysis validation (ShellCheck + Zsh/Bash syntax) via GitHub Actions CI.
-* **XDG Compliance:**
-  * Keeps `$HOME` clean by storing configs in `~/.config`, state/history in `~/.local/state`, cache in `~/.cache`, and data/plugins in `~/.local/share`.
-
----
-
-## Directory Structure
-
-```text
-.
-├── .editorconfig           # Coding style and formatting rules
-├── .github/
-│   └── workflows/
-│       └── ci.yml          # GitHub Actions CI workflow
-├── Makefile                # Automation commands (install, lint, update)
-├── git/
-│   ├── config              # Global Git configuration and aliases
-│   ├── config.local.example# Template for local user identity
-│   └── ignore              # Global gitignore patterns
-├── install.sh              # Idempotent installer with automated backups
-├── mise/
-│   └── config.toml         # Global runtime and tool declarations
-├── tmux/
-│   └── tmux.conf           # Modern XDG-compliant Tmux configuration
-├── uninstall.sh            # Safe uninstaller and backup restore
-└── zsh/
-    ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
-    ├── .zshrc              # Modular initialization entrypoint
-    ├── local.zsh.example   # Template for private/local environment
-    ├── config/
-    │   ├── aliases.zsh     # Aliases and CLI replacements
-    │   ├── completion.zsh  # Compinit, zstyle, and caching
-    │   ├── exports.zsh     # Environment variables and default editor
-    │   ├── functions.zsh   # Shell helper utilities (mkcd, extract, myip, port, etc.)
-    │   ├── history.zsh     # History size and behavior
-    │   ├── keybindings.zsh # Terminal key mappings and widgets
-    │   └── prompt.zsh      # Git-aware custom prompt
-    └── integrations/
-        ├── fzf.zsh         # Fuzzy finder keybindings and fd source
-        ├── mise.zsh        # Mise shell activation
-        ├── plugins.zsh     # Autosuggestions & syntax highlighting
-        └── zoxide.zsh      # Smarter cd navigation
-```
-
----
-
-## Requirements
-
-* **OS:** Linux / macOS / WSL
-* **Base Packages:** `git`, `curl`, `tar`, `zsh`
-* **Font:** [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) (installed automatically by `install.sh` if missing).
-
----
-
-## Installation
-
-Clone the repository and run the installer:
+## Quick Start
 
 ```bash
 git clone https://github.com/guilhermegsr/dotfiles.git ~/.dotfiles
@@ -95,32 +12,65 @@ cd ~/.dotfiles
 ./install.sh
 ```
 
-### What `install.sh` does:
-1. Backs up any existing non-symlink configurations with timestamps (`.bak.YYYYMMDD_HHMMSS`).
-2. Creates symlinks targeting `~/.config/zsh`, `~/.zshenv`, `~/.config/git`, `~/.config/mise/config.toml`, and `~/.config/tmux`.
-3. Clones essential Zsh plugins (`zsh-autosuggestions` & `zsh-syntax-highlighting`) to `~/.local/share/zsh/plugins`.
-4. Installs **JetBrainsMono Nerd Font** directly to `~/.local/share/fonts` (Linux) or `~/Library/Fonts` (macOS) and triggers `fc-cache`.
-5. Installs `mise` if not present on the system.
-6. Executes `mise install` to provision all declared tools and runtimes (including `tmux`).
-7. Updates the default shell to `zsh` via `chsh` if necessary.
+---
+
+## Core Stack
+
+| Component | Tool | Highlights |
+| :--- | :--- | :--- |
+| **Shell** | [Zsh](https://www.zsh.org/) | Modular layout, bytecode compilation (`.zwc`), daily completion caching, custom Git prompt with latency timer |
+| **Multiplexer** | [Tmux](https://github.com/tmux/tmux) | Omarchy-inspired top status bar (`●`), `Ctrl+b` prefix, arrow navigation, automatic window naming, `Alt+1..9` tabs |
+| **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (12px), `Beam` cursor shape |
+| **Toolchains** | [Mise](https://mise.jdx.dev/) | Declarative runtime management (`Node.js`, `Python`, `Rust`, `Bun`, `uv`, `tmux`, `shellcheck`) |
+| **Modern CLI** | Core Utilities | `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `fzf` (fuzzy search) |
+| **VCS** | [Git](https://git-scm.com/) | XDG config, `zdiff3` conflict style, `histogram` diff, `rerere`, `fetch.prune`, automatic remote setup |
 
 ---
 
-## Uninstallation
+## Built-in Utilities & Keybindings
 
-To remove all symlinks, remove installed Nerd Fonts, restore previous backups, and revert the default shell to Bash:
+### Zsh Helpers
+* `mkcd <dir>` — Create directory and `cd` into it in one command.
+* `extract <archive>` — Universal extractor for `.tar.*`, `.zip`, `.7z`, `.rar`, and `.tar.zst`.
+* `port <port>` — Show process listening on a given network port (`lsof` / `ss` / `netstat`).
+* `myip` — Display local network IP and public IP.
+* `git-clean-branches` — Interactively prune local branches already merged into upstream default branch.
 
-```bash
-./uninstall.sh
+### Tmux Shortcuts
+* `Ctrl+b` $\to$ `|` / `-` — Split pane vertically / horizontally (preserves active directory).
+* `Ctrl+b` $\to$ `c` — New window (auto-named by active process).
+* `Ctrl+b` $\to$ `,` — Rename active window manually.
+* `Ctrl+b` $\to$ `.` — Restore automatic window renaming.
+* `Alt+1` .. `Alt+9` — Switch directly to window $N$ without prefix.
+* `Alt + Arrows` — Navigate panes directly without prefix.
+
+---
+
+## Directory Layout
+
+```text
+.
+├── Makefile                # Automation entrypoints (install, update, lint)
+├── alacritty/              # Terminal font and cursor configuration
+├── git/                    # Global Git configuration, ignores, and local template
+├── install.sh              # Idempotent deployment script with automated font setup
+├── mise/                   # Global CLI tools and runtime declarations
+├── tmux/                   # Minimalist top-bar Tmux configuration
+├── uninstall.sh            # Safe teardown and backup restoration script
+└── zsh/
+    ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
+    ├── .zshrc              # Modular initialization loader
+    ├── config/             # Aliases, completions, exports, functions, history, prompt
+    └── integrations/       # Fzf, Mise, plugins (autosuggestions/syntax-highlighting), Zoxide
 ```
 
 ---
 
-## Automation (Makefile)
+## Management
 
-If `make` is installed on your system, you can use the following commands:
-
-* `make install` - Runs the installer (`./install.sh`).
-* `make uninstall` - Reverts symlinks and restores backups (`./uninstall.sh`).
-* `make lint` - Validates syntax for all Bash and Zsh scripts.
-* `make update` - Upgrades tools via Mise and pulls latest versions of Zsh plugins.
+```bash
+make install    # Deploy symlinks, provision font, and install Mise tools
+make update     # Upgrade Mise tools and pull latest Zsh plugins
+make lint       # Validate syntax and run ShellCheck analysis
+make uninstall  # Revert symlinks and restore original files
+```
