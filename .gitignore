@@ -7,6 +7,12 @@ zcompdump*
 # Backups
 *.bak*
 
+# Local overrides & secrets
+*.local
+*.local.zsh
+zsh/local.zsh
+git/config.local
+
 # OS metadata
 .DS_Store
 Thumbs.db

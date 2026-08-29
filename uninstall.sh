@@ -57,16 +57,22 @@ restore_latest_backup() {
     fi
 }
 
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+
 # Zsh
-unlink_file "$DOTFILES_DIR/zsh" "$HOME/.config/zsh"
-restore_latest_backup "$HOME/.config/zsh"
+unlink_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
+restore_latest_backup "$CONFIG_DIR/zsh"
 
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
+# Git
+unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
+restore_latest_backup "$CONFIG_DIR/git"
+
 # Mise
-unlink_file "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
-restore_latest_backup "$HOME/.config/mise/config.toml"
+unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
+restore_latest_backup "$CONFIG_DIR/mise/config.toml"
 
 # Restore default shell to Bash if current is Zsh
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"

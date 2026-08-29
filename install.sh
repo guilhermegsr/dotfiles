@@ -62,12 +62,38 @@ link_file() {
     success "Linked '$dest' -> '$src'"
 }
 
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+
 # Zsh
-link_file "$DOTFILES_DIR/zsh" "$HOME/.config/zsh"
+link_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
 link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 
+# Git
+link_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
+
 # Mise
-link_file "$DOTFILES_DIR/mise/config.toml" "$HOME/.config/mise/config.toml"
+link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
+
+# Zsh Plugins
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
+PLUGIN_DIR="$DATA_DIR/zsh/plugins"
+mkdir -p "$PLUGIN_DIR"
+
+if [[ ! -d "$PLUGIN_DIR/zsh-autosuggestions" ]]; then
+    if command -v git >/dev/null 2>&1; then
+        info "Installing zsh-autosuggestions..."
+        git clone --depth 1 https://github.com/zsh-users/zsh-autosuggestions "$PLUGIN_DIR/zsh-autosuggestions"
+        success "Installed zsh-autosuggestions"
+    fi
+fi
+
+if [[ ! -d "$PLUGIN_DIR/zsh-syntax-highlighting" ]]; then
+    if command -v git >/dev/null 2>&1; then
+        info "Installing zsh-syntax-highlighting..."
+        git clone --depth 1 https://github.com/zsh-users/zsh-syntax-highlighting "$PLUGIN_DIR/zsh-syntax-highlighting"
+        success "Installed zsh-syntax-highlighting"
+    fi
+fi
 
 # Bootstrap mise if missing
 export PATH="$HOME/.local/bin:$PATH"
