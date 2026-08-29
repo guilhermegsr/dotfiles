@@ -1,0 +1,10 @@
+# Local Git configuration (not committed to git)
+# Copy to ~/.config/git/config.local and configure your personal info:
+
+[user]
+    name = Your Name
+    email = your.email@example.com
+    # signingkey = YOUR_GPG_OR_SSH_KEY_ID
+
+# [commit]
+#     gpgsign = true

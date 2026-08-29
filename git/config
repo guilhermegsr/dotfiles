@@ -1,0 +1,46 @@
+[user]
+    # Configure personal identity in ~/.config/git/config.local
+    # name = Your Name
+    # email = your.email@example.com
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+    followTags = true
+
+[core]
+    autocrlf = input
+    excludesFile = ~/.config/git/ignore
+
+[diff]
+    colorMoved = default
+    algorithm = histogram
+
+[merge]
+    conflictStyle = zdiff3
+
+[rebase]
+    autoStash = true
+
+[alias]
+    st = status -sb
+    co = checkout
+    br = branch
+    ci = commit
+    cm = commit -m
+    ca = commit --amend
+    can = commit --amend --no-edit
+    df = diff
+    dfs = diff --staged
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+    lga = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --all
+    unstage = reset HEAD --
+    last = log -1 HEAD --stat
+
+[include]
+    path = config.local
