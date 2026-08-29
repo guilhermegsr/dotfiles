@@ -215,8 +215,24 @@ else
 fi
 
 # ==============================================================================
-# Interactive Setup: Git Identity & Personal SSH Key
+# Interactive Setup: Backup Restoration, Git Identity & Personal SSH Key
 # ==============================================================================
+section "Checking for existing backup archive..."
+if [[ -t 0 ]]; then
+    read -r -p "  Do you have an existing backup archive to restore? [y/N]: " has_backup_choice
+    if [[ "$has_backup_choice" =~ ^[Yy]$ ]]; then
+        read -r -p "  Enter path to backup archive (e.g. ~/dotfiles-backup.tar.gz): " backup_archive_path
+        if [[ -n "$backup_archive_path" ]]; then
+            expanded_backup="${backup_archive_path/#\~/$HOME}"
+            if [[ -f "$expanded_backup" ]]; then
+                "$DOTFILES_DIR/restore.sh" "$expanded_backup"
+            else
+                warn "Backup archive not found at '$backup_archive_path'; continuing with standard setup"
+            fi
+        fi
+    fi
+fi
+
 section "Configuring Git identity..."
 GIT_CONFIG_LOCAL="$CONFIG_DIR/git/config.local"
 GIT_NAME=""

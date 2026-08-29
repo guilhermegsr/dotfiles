@@ -13,8 +13,9 @@ make install
 ```
 
 During installation, the installer will interactively prompt for:
-1. **Git Author Name & Email**: Automatically provisions `~/.config/git/config.local`.
-2. **Personal SSH Key Generation**: Optionally creates an `ed25519` key in `~/.ssh/keys/personal/` and copies the public key to your clipboard (or skips if you already have existing keys/backups).
+1. **Existing Backup Restoration**: Optionally restore an existing backup archive (`.tar.gz` or encrypted `.tar.gz.enc`).
+2. **Git Author Name & Email**: Automatically provisions `~/.config/git/config.local` (or reuses restored identity).
+3. **Personal SSH Key Generation**: Optionally creates an `ed25519` key in `~/.ssh/keys/personal/` (or skips if keys already exist/were restored).
 
 ---
 
@@ -148,18 +149,39 @@ All keys are strictly structured under `~/.ssh/keys/` and auto-routed via `~/.ss
 
 ---
 
+### 5. Secrets & SSH Backup & Restore
+
+Archive and migrate all machine-specific secrets, Git identities, and SSH keys safely:
+
+* **Create a backup**:
+  ```bash
+  make backup
+  # Archives ~/.ssh/keys, ~/.ssh/config.local, ~/.config/git/config.local, and ~/.config/zsh/local.zsh
+  # Prompts for optional AES-256-CBC password encryption via OpenSSL
+  ```
+
+* **Restore a backup**:
+  ```bash
+  make restore
+  # Prompts for backup file path, decrypts if necessary, and enforces strict POSIX permissions (0700/0600/0644)
+  ```
+
+---
+
 ## Directory Layout
 
 ```text
 .
-├── Makefile                # Automation entrypoints (install, update, lint)
+├── Makefile                # Automation entrypoints (install, backup, restore, update, lint)
 ├── alacritty/              # GPU-accelerated terminal configuration
+├── backup.sh               # Secure archive utility for untracked secrets and SSH keys
 ├── git/                    # Global Git configuration, ignores, and local template
 │   ├── config              # Global settings (histogram diff, zdiff3, rerere)
 │   ├── config.local.example# Template for personal name/email
 │   └── ignore              # Global ignores (OS, IDEs, caches, local secrets)
 ├── install.sh              # Idempotent deployment script with automated font & SSH setup
 ├── mise/                   # Global CLI tools and runtime declarations (config.toml)
+├── restore.sh              # Safe restoration utility with automatic permission hardening
 ├── ssh/                    # SSH client configuration and templates
 │   ├── config              # Global defaults, ControlMaster multiplexing, Git routing
 │   └── config.local.example# Template for corporate hosts, bastions, and tunnels
@@ -179,6 +201,8 @@ All keys are strictly structured under `~/.ssh/keys/` and auto-routed via `~/.ss
 
 ```bash
 make install    # Deploy symlinks, provision font, and install Mise tools
+make backup     # Create secure/encrypted archive of local secrets and SSH keys
+make restore    # Restore secrets and SSH keys from a backup archive
 make update     # Upgrade Mise tools and pull latest Zsh plugins
 make lint       # Validate syntax and run ShellCheck analysis
 make uninstall  # Revert symlinks and restore original files
