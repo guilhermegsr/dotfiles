@@ -9,6 +9,7 @@ source "$ZSH_CONFIG_HOME/config/history.zsh"
 source "$ZSH_CONFIG_HOME/config/completion.zsh"
 source "$ZSH_CONFIG_HOME/config/keybindings.zsh"
 source "$ZSH_CONFIG_HOME/config/aliases.zsh"
+source "$ZSH_CONFIG_HOME/config/functions.zsh"
 
 # Integrations
 source "$ZSH_CONFIG_HOME/integrations/fzf.zsh"
