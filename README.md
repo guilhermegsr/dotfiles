@@ -20,7 +20,7 @@ cd ~/.dotfiles
 | :--- | :--- | :--- |
 | **Shell** | [Zsh](https://www.zsh.org/) | Modular layout, bytecode compilation (`.zwc`), daily completion caching, custom Git prompt with latency timer |
 | **Multiplexer** | [Tmux](https://github.com/tmux/tmux) | Omarchy-inspired top status bar (`●`), `Ctrl+b` prefix, arrow navigation, automatic window naming, `Alt+1..9` tabs |
-| **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (12px), `Beam` cursor shape |
+| **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (11px), `Beam` cursor shape |
 | **Toolchains** | [Mise](https://mise.jdx.dev/) | Declarative runtime management (`Node.js`, `Python`, `Rust`, `Bun`, `uv`, `tmux`, `shellcheck`) |
 | **Modern CLI** | Core Utilities | `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `fzf` (fuzzy search) |
 | **VCS** | [Git](https://git-scm.com/) | XDG config, `zdiff3` conflict style, `histogram` diff, `rerere`, `fetch.prune`, automatic remote setup |
