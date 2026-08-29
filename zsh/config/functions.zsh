@@ -58,21 +58,21 @@ port() {
 
 # Resolve local and public IP addresses
 myip() {
-    printf "Local IP:  "
+    local local_ip="Unavailable"
+    local public_ip="Unavailable"
+
     if command -v ip >/dev/null 2>&1; then
-        ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || echo "Unavailable"
+        local_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')"
     elif command -v ifconfig >/dev/null 2>&1; then
-        ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n1 || echo "Unavailable"
-    else
-        echo "Unavailable"
+        local_ip="$(ifconfig 2>/dev/null | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n1)"
     fi
 
-    printf "Public IP: "
     if command -v curl >/dev/null 2>&1; then
-        curl -fsS --max-time 3 https://icanhazip.com 2>/dev/null || echo "Unavailable"
-    else
-        echo "Unavailable (requires curl)"
+        public_ip="$(curl -fsS --max-time 3 https://icanhazip.com 2>/dev/null || echo "Unavailable")"
     fi
+
+    printf "Local IP:  %s\n" "${local_ip:-Unavailable}"
+    printf "Public IP: %s\n" "${public_ip:-Unavailable}"
 }
 
 # Interactively remove merged local Git branches against upstream default branch
@@ -83,7 +83,7 @@ git-clean-branches() {
     fi
 
     local main_branch
-    main_branch="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")"
+    main_branch="$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')"
     [[ -z "$main_branch" ]] && main_branch="main"
 
     local branches_to_delete
@@ -102,6 +102,6 @@ git-clean-branches() {
         echo "$branches_to_delete" | xargs git branch -d
         echo "Branches pruned successfully."
     else
-        echo "Aborted."
+        echo "Pruning aborted."
     fi
 }

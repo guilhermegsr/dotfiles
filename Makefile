@@ -15,8 +15,10 @@ lint: ## Run static analysis and syntax validation across Bash and Zsh files
 	@echo "==> Running ShellCheck analysis..."
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		shellcheck install.sh uninstall.sh; \
+	elif command -v mise >/dev/null 2>&1 && mise which shellcheck >/dev/null 2>&1; then \
+		mise exec -- shellcheck install.sh uninstall.sh; \
 	else \
-		echo "Notice: ShellCheck not found in PATH; skipping static analysis."; \
+		echo "Notice: ShellCheck not found; skipping static analysis."; \
 	fi
 	@echo "==> Validating Bash script syntax..."
 	@bash -n install.sh uninstall.sh

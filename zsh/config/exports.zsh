@@ -1,3 +1,7 @@
+# Character encoding & localization
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+
 # XDG Base Directory specification compliance
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -14,15 +18,15 @@ export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
 
 export PATH="$HOME/.local/bin:$CARGO_HOME/bin:$PATH"
 
-# Editor resolution with descending preference
-if command -v cursor >/dev/null 2>&1; then
-    export EDITOR="cursor"
-elif command -v code >/dev/null 2>&1; then
-    export EDITOR="code"
-elif command -v nvim >/dev/null 2>&1; then
+# Editor resolution with CLI prioritization for Git & terminal workflows
+if command -v nvim >/dev/null 2>&1; then
     export EDITOR="nvim"
 elif command -v vim >/dev/null 2>&1; then
     export EDITOR="vim"
+elif command -v cursor >/dev/null 2>&1; then
+    export EDITOR="cursor --wait"
+elif command -v code >/dev/null 2>&1; then
+    export EDITOR="code --wait"
 elif command -v nano >/dev/null 2>&1; then
     export EDITOR="nano"
 else
@@ -30,22 +34,31 @@ else
 fi
 export VISUAL="$EDITOR"
 
+# Syntax-highlighted man pages via bat
+if command -v bat >/dev/null 2>&1; then
+    export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+fi
+
 # Web browser resolution
 if command -v firefox >/dev/null 2>&1; then
     export BROWSER="firefox"
-elif command -v google-chrome >/dev/null 2>&1; then
-    export BROWSER="google-chrome"
+elif command -v brave-origin >/dev/null 2>&1; then
+    export BROWSER="brave-origin"
+elif command -v brave-browser >/dev/null 2>&1; then
+    export BROWSER="brave-browser"
+elif command -v brave >/dev/null 2>&1; then
+    export BROWSER="brave"
 elif command -v xdg-open >/dev/null 2>&1; then
     export BROWSER="xdg-open"
 fi
 
-# Terminal emulator resolution
-if command -v konsole >/dev/null 2>&1; then
-    export TERMINAL="konsole"
+# Terminal emulator resolution (Alacritty prioritized)
+if command -v alacritty >/dev/null 2>&1; then
+    export TERMINAL="alacritty"
 elif command -v ghostty >/dev/null 2>&1; then
     export TERMINAL="ghostty"
-elif command -v alacritty >/dev/null 2>&1; then
-    export TERMINAL="alacritty"
 elif command -v kitty >/dev/null 2>&1; then
     export TERMINAL="kitty"
+elif command -v konsole >/dev/null 2>&1; then
+    export TERMINAL="konsole"
 fi
