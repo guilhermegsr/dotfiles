@@ -33,11 +33,6 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
 
-# Safety defaults
-alias rm='rm -i'
-alias cp='cp -i'
-alias mv='mv -i'
-
 # Utilities
 alias df='df -h'
 alias free='free -h'

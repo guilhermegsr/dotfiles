@@ -35,34 +35,23 @@ _git_status() {
     print -n " [${(j: :)indicators}]"
 }
 
-_git_repo_path() {
-    local root prefix
-    root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
-    prefix="$(git rev-parse --show-prefix 2>/dev/null)"
-    prefix="${prefix%/}"
-    if [[ -n "$prefix" ]]; then
-        print -n "${root:t}/$prefix"
-    else
-        print -n "${root:t}"
-    fi
-}
-
-_is_git_repo() {
-    git rev-parse --is-inside-work-tree &>/dev/null
-}
-
-_prompt_path() {
-    if _is_git_repo; then
-        _git_repo_path
-    else
-        print -n "%2~"
-    fi
-}
-
 _prompt_update() {
     vcs_info
-    PROMPT_PATH="$(_prompt_path)"
-    PROMPT_GIT_STATUS="$(_git_status)"
+    local git_info
+    if git_info="$(git rev-parse --show-toplevel --show-prefix 2>/dev/null)"; then
+        local -a lines=("${(f)git_info}")
+        local repo_root="${lines[1]}"
+        local repo_prefix="${lines[2]%/}"
+        if [[ -n "$repo_prefix" ]]; then
+            PROMPT_PATH="${repo_root:t}/$repo_prefix"
+        else
+            PROMPT_PATH="${repo_root:t}"
+        fi
+        PROMPT_GIT_STATUS="$(_git_status)"
+    else
+        PROMPT_PATH="%2~"
+        PROMPT_GIT_STATUS=""
+    fi
 }
 
 precmd() {
