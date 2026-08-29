@@ -1,0 +1,15 @@
+# Local & Private Zsh configuration
+# Copy this file to ~/.config/zsh/local.zsh (or zsh/local.zsh)
+# This file is ignored by Git and will never be committed.
+
+# --- Private API Keys & Tokens ---
+# export GITHUB_TOKEN="ghp_..."
+# export OPENAI_API_KEY="sk-..."
+# export ANTHROPIC_API_KEY="sk-ant-..."
+
+# --- Machine-Specific PATH additions ---
+# export PATH="$HOME/.cargo/bin:$PATH"
+# export PATH="$HOME/go/bin:$PATH"
+
+# --- Work / Machine-Specific Aliases & Functions ---
+# alias work="cd ~/Projects/work"

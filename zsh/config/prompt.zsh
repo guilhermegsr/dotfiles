@@ -10,6 +10,7 @@ zstyle ':vcs_info:git:*' actionformats ' %F{242}on%f %F{magenta}󰘬 %b%f %F{yel
 _git_status() {
     local git_status line
     local staged=0 unstaged=0 untracked=0
+    local -a indicators=()
 
     git_status="$(git status --porcelain 2>/dev/null)" || return
 
@@ -25,19 +26,25 @@ _git_status() {
         [[ "${line[2]}" != ' ' ]] && ((unstaged++))
     done <<< "$git_status"
 
-    (( staged > 0 || unstaged > 0 || untracked > 0 )) || return
+    (( staged > 0 )) && indicators+=("%F{green}+${staged}%f")
+    (( unstaged > 0 )) && indicators+=("%F{yellow}*${unstaged}%f")
+    (( untracked > 0 )) && indicators+=("%F{red}?${untracked}%f")
 
-    print -n " ["
-    (( staged > 0 )) && print -n "%F{green}+${staged}%f "
-    (( unstaged > 0 )) && print -n "%F{yellow}*${unstaged}%f "
-    (( untracked > 0 )) && print -n "%F{red}?${untracked}%f"
-    print -n "]"
+    (( ${#indicators} > 0 )) || return
+
+    print -n " [${(j: :)indicators}]"
 }
 
-_git_repo_name() {
-    local root
+_git_repo_path() {
+    local root prefix
     root="$(git rev-parse --show-toplevel 2>/dev/null)" || return
-    print -n "${root:t}"
+    prefix="$(git rev-parse --show-prefix 2>/dev/null)"
+    prefix="${prefix%/}"
+    if [[ -n "$prefix" ]]; then
+        print -n "${root:t}/$prefix"
+    else
+        print -n "${root:t}"
+    fi
 }
 
 _is_git_repo() {
@@ -46,7 +53,7 @@ _is_git_repo() {
 
 _prompt_path() {
     if _is_git_repo; then
-        _git_repo_name
+        _git_repo_path
     else
         print -n "%2~"
     fi
