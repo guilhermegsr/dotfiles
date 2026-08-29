@@ -74,8 +74,8 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
 ## Requirements
 
 * **OS:** Linux / macOS / WSL
-* **Base Packages:** `git`, `curl`, `zsh`
-* **Font:** Any [Nerd Font](https://www.nerdfonts.com/) (e.g., JetBrainsMono Nerd Font) for prompt glyphs.
+* **Base Packages:** `git`, `curl`, `tar`, `zsh`
+* **Font:** [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) (installed automatically by `install.sh` if missing).
 
 ---
 
@@ -92,16 +92,17 @@ cd ~/.dotfiles
 ### What `install.sh` does:
 1. Backs up any existing non-symlink configurations with timestamps (`.bak.YYYYMMDD_HHMMSS`).
 2. Creates symlinks targeting `~/.config/zsh`, `~/.zshenv`, `~/.config/git`, and `~/.config/mise/config.toml`.
-3. Installs `mise` if not present on the system.
-4. Executes `mise install` to provision all declared tools and runtimes.
-5. Clones essential Zsh plugins (`zsh-autosuggestions` & `zsh-syntax-highlighting`) to `~/.local/share/zsh/plugins`.
-6. Updates the default shell to `zsh` via `chsh` if necessary.
+3. Clones essential Zsh plugins (`zsh-autosuggestions` & `zsh-syntax-highlighting`) to `~/.local/share/zsh/plugins`.
+4. Installs **JetBrainsMono Nerd Font** directly to `~/.local/share/fonts` (Linux) or `~/Library/Fonts` (macOS) and triggers `fc-cache`.
+5. Installs `mise` if not present on the system.
+6. Executes `mise install` to provision all declared tools and runtimes.
+7. Updates the default shell to `zsh` via `chsh` if necessary.
 
 ---
 
 ## Uninstallation
 
-To remove all symlinks, restore previous backups, and revert the default shell to Bash:
+To remove all symlinks, remove installed Nerd Fonts, restore previous backups, and revert the default shell to Bash:
 
 ```bash
 ./uninstall.sh

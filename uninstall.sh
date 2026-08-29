@@ -2,31 +2,39 @@
 
 set -euo pipefail
 
+BOLD='\033[1m'
+DIM='\033[2m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+section() {
+    printf "\n${CYAN}==>${NC} ${BOLD}%s${NC}\n" "$1"
+}
+
 info() {
-    printf "${BLUE}[INFO]${NC} %s\n" "$1"
+    printf "  ${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 success() {
-    printf "${GREEN}[OK]${NC} %s\n" "$1"
+    printf "  ${GREEN}[OK]${NC}   %s\n" "$1"
 }
 
 warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "  ${YELLOW}[WARN]${NC} %s\n" "$1"
 }
 
 error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+    printf "  ${RED}[ERROR]${NC} %s\n" "$1" >&2
 }
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-info "Uninstalling dotfiles linked from: $DOTFILES_DIR"
+printf "\n${BOLD}${YELLOW}=== Uninstalling Dotfiles ===${NC}\n"
+printf "${DIM}Target: %s${NC}\n" "$DOTFILES_DIR"
 
 unlink_file() {
     local src="$1"
@@ -43,6 +51,8 @@ unlink_file() {
         fi
     elif [[ -e "$dest" ]]; then
         warn "Skipping '$dest': file/directory exists and is not a symlink"
+    else
+        info "Nothing to unlink for '$dest'"
     fi
 }
 
@@ -58,23 +68,47 @@ restore_latest_backup() {
 }
 
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 
-# Zsh
+# 1. Symlinks & Backups
+section "Removing symlinks and restoring backups..."
+
 unlink_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
 restore_latest_backup "$CONFIG_DIR/zsh"
 
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
-# Git
 unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
 restore_latest_backup "$CONFIG_DIR/git"
 
-# Mise
 unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 restore_latest_backup "$CONFIG_DIR/mise/config.toml"
 
-# Restore default shell to Bash if current is Zsh
+# 2. Nerd Font
+section "Checking fonts to remove..."
+FONT_DIR=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    FONT_DIR="$HOME/Library/Fonts"
+else
+    FONT_DIR="$DATA_DIR/fonts"
+fi
+
+if [[ -d "$FONT_DIR" ]]; then
+    if find "$FONT_DIR" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" 2>/dev/null | grep -q .; then
+        info "Removing JetBrainsMono Nerd Font files from '$FONT_DIR'..."
+        find "$FONT_DIR" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" -delete 2>/dev/null || true
+        if command -v fc-cache >/dev/null 2>&1; then
+            fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
+        fi
+        success "Removed JetBrainsMono Nerd Font"
+    else
+        info "No JetBrainsMono Nerd Font found in '$FONT_DIR'"
+    fi
+fi
+
+# 3. Default Shell Restoration
+section "Restoring default shell..."
 ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
 BASH_PATH="$(command -v bash 2>/dev/null || true)"
 
@@ -95,7 +129,9 @@ if [[ -n "$BASH_PATH" && -n "$ZSH_PATH" ]]; then
                 warn "Could not change default shell automatically. Run: chsh -s $BASH_PATH"
             fi
         fi
+    else
+        info "Current shell is not Zsh ($CURRENT_SHELL), leaving unchanged"
     fi
 fi
 
-success "Dotfiles uninstalled successfully."
+printf "\n${BOLD}${GREEN}✔ Dotfiles uninstalled successfully.${NC}\n\n"
