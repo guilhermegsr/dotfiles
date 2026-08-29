@@ -15,7 +15,7 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
   * Untracked local override support (`~/.config/zsh/local.zsh`) for machine-specific tokens and aliases.
 * **Version Control (Git):**
   * Global XDG configuration in `~/.config/git/config`.
-  * Modern defaults: `zdiff3` conflict style, `histogram` diff algorithm, `colorMoved`, `rebase.autoStash`.
+  * Modern defaults: `zdiff3` conflict style, `histogram` diff algorithm, `colorMoved`, `rebase.autoStash`, `rerere.enabled` (reuse recorded conflict resolutions), and `fetch.prune`.
   * Global ignore rules in `~/.config/git/ignore`.
   * Untracked identity and credentials support via `~/.config/git/config.local`.
 * **Tool & Runtime Management ([Mise](https://mise.jdx.dev)):**
@@ -28,7 +28,7 @@ Personal dotfiles for Linux, built around **Zsh** and **Mise**, adhering strictl
 * **Automation & CI/CD:**
   * Standardized styling via `.editorconfig`.
   * Convenience tasks via `Makefile` (`install`, `uninstall`, `lint`, `update`).
-  * Automated syntax and installation validation via GitHub Actions CI.
+  * Automated syntax and static analysis validation (ShellCheck + Zsh/Bash syntax) via GitHub Actions CI.
 * **XDG Compliance:**
   * Keeps `$HOME` clean by storing configs in `~/.config`, state/history in `~/.local/state`, cache in `~/.cache`, and data/plugins in `~/.local/share`.
 

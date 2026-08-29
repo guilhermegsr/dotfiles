@@ -18,7 +18,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zsh curl git
+          sudo apt-get install -y zsh curl git shellcheck
+
+      - name: Static analysis with ShellCheck
+        run: |
+          shellcheck install.sh uninstall.sh
 
       - name: Check Bash scripts syntax
         run: |
