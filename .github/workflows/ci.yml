@@ -46,6 +46,7 @@ jobs:
           test -L "$HOME/.config/git"
           test -L "$HOME/.config/mise/config.toml"
           test -L "$HOME/.config/tmux"
+          test -L "$HOME/.config/alacritty"
 
       - name: Test uninstallation script
         run: |
@@ -58,3 +59,4 @@ jobs:
           ! test -L "$HOME/.config/git"
           ! test -L "$HOME/.config/mise/config.toml"
           ! test -L "$HOME/.config/tmux"
+          ! test -L "$HOME/.config/alacritty"

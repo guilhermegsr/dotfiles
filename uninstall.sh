@@ -86,6 +86,9 @@ restore_latest_backup "$CONFIG_DIR/mise/config.toml"
 unlink_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 restore_latest_backup "$CONFIG_DIR/tmux"
 
+unlink_file "$DOTFILES_DIR/alacritty" "$CONFIG_DIR/alacritty"
+restore_latest_backup "$CONFIG_DIR/alacritty"
+
 section "Removing installed fonts..."
 FONT_DIR=""
 if [[ "$OSTYPE" == "darwin"* ]]; then

@@ -79,6 +79,7 @@ link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 link_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
 link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 link_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
+link_file "$DOTFILES_DIR/alacritty" "$CONFIG_DIR/alacritty"
 
 section "Setting up Zsh plugins..."
 PLUGIN_DIR="$DATA_DIR/zsh/plugins"
@@ -189,6 +190,14 @@ else
     else
         info "Zsh is already the default login shell ($ZSH_PATH)"
     fi
+fi
+
+section "Verifying terminal emulator..."
+if command -v alacritty >/dev/null 2>&1; then
+    ALACRITTY_VER="$(alacritty --version 2>/dev/null | head -n1 || echo 'detected')"
+    success "Alacritty is installed ($ALACRITTY_VER)"
+else
+    info "Alacritty is not installed (config deployed to $CONFIG_DIR/alacritty)"
 fi
 
 printf "\n%b✔ Installation finished successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"
