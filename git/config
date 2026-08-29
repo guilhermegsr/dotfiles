@@ -13,9 +13,12 @@
     autoSetupRemote = true
     followTags = true
 
+[fetch]
+    prune = true
+    pruneTags = true
+
 [core]
     autocrlf = input
-    excludesFile = ~/.config/git/ignore
 
 [diff]
     colorMoved = default
@@ -26,6 +29,10 @@
 
 [rebase]
     autoStash = true
+
+[rerere]
+    enabled = true
+    autoUpdate = true
 
 [alias]
     st = status -sb
