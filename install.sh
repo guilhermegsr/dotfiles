@@ -214,4 +214,112 @@ else
     info "Alacritty is not installed (config deployed to $CONFIG_DIR/alacritty)"
 fi
 
+# ==============================================================================
+# Interactive Setup: Git Identity & Personal SSH Key
+# ==============================================================================
+section "Configuring Git identity..."
+GIT_CONFIG_LOCAL="$CONFIG_DIR/git/config.local"
+GIT_NAME=""
+GIT_EMAIL=""
+
+if [[ -f "$GIT_CONFIG_LOCAL" ]]; then
+    CURRENT_GIT_NAME="$(git config --file "$GIT_CONFIG_LOCAL" user.name 2>/dev/null || true)"
+    CURRENT_GIT_EMAIL="$(git config --file "$GIT_CONFIG_LOCAL" user.email 2>/dev/null || true)"
+    if [[ -n "$CURRENT_GIT_NAME" && -n "$CURRENT_GIT_EMAIL" ]]; then
+        info "Current Git identity: $CURRENT_GIT_NAME <$CURRENT_GIT_EMAIL>"
+        if [[ -t 0 ]]; then
+            read -r -p "  Do you want to update this identity? [y/N]: " update_git_identity
+            if [[ "$update_git_identity" =~ ^[Yy]$ ]]; then
+                read -r -p "  Enter Git author name [$CURRENT_GIT_NAME]: " input_name
+                read -r -p "  Enter Git author email [$CURRENT_GIT_EMAIL]: " input_email
+                GIT_NAME="${input_name:-$CURRENT_GIT_NAME}"
+                GIT_EMAIL="${input_email:-$CURRENT_GIT_EMAIL}"
+            else
+                GIT_NAME="$CURRENT_GIT_NAME"
+                GIT_EMAIL="$CURRENT_GIT_EMAIL"
+            fi
+        else
+            GIT_NAME="$CURRENT_GIT_NAME"
+            GIT_EMAIL="$CURRENT_GIT_EMAIL"
+        fi
+    fi
+fi
+
+if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
+    if [[ -t 0 ]]; then
+        info "Configuring local Git identity (saved to ~/.config/git/config.local)"
+        read -r -p "  Enter Git author name: " GIT_NAME
+        read -r -p "  Enter Git author email: " GIT_EMAIL
+    fi
+fi
+
+if [[ -n "${GIT_NAME:-}" && -n "${GIT_EMAIL:-}" ]]; then
+    cat > "$GIT_CONFIG_LOCAL" <<EOF
+[user]
+    name = $GIT_NAME
+    email = $GIT_EMAIL
+EOF
+    chmod 600 "$GIT_CONFIG_LOCAL"
+    success "Configured Git identity: $GIT_NAME <$GIT_EMAIL>"
+else
+    if [[ ! -f "$GIT_CONFIG_LOCAL" ]]; then
+        cp "$DOTFILES_DIR/git/config.local.example" "$GIT_CONFIG_LOCAL"
+        chmod 600 "$GIT_CONFIG_LOCAL"
+        warn "Git identity skipped. Template created at '$GIT_CONFIG_LOCAL'"
+    fi
+fi
+
+section "Configuring personal SSH keypair..."
+PERSONAL_KEY="$HOME/.ssh/keys/personal/id_ed25519"
+
+if [[ -f "$PERSONAL_KEY" ]]; then
+    info "Personal SSH key already exists at '$PERSONAL_KEY'"
+else
+    if [[ -t 0 ]]; then
+        echo "  Would you like to generate a new personal SSH key (ed25519) now?"
+        read -r -p "  Generate personal key? (Skip if you already have existing keys or backup) [y/N]: " gen_key_choice
+        if [[ "$gen_key_choice" =~ ^[Yy]$ ]]; then
+            KEY_COMMENT="${GIT_EMAIL:-${USER:-$(whoami)}}"
+            info "Generating ed25519 key at '$PERSONAL_KEY'..."
+            ssh-keygen -t ed25519 -C "$KEY_COMMENT" -f "$PERSONAL_KEY"
+            chmod 600 "$PERSONAL_KEY"
+            chmod 644 "${PERSONAL_KEY}.pub"
+            success "Personal SSH key generated at '$PERSONAL_KEY'"
+
+            if command -v wl-copy >/dev/null 2>&1; then
+                wl-copy < "${PERSONAL_KEY}.pub"
+                info "Public key copied to clipboard via wl-copy"
+            elif command -v xclip >/dev/null 2>&1; then
+                xclip -selection clipboard < "${PERSONAL_KEY}.pub"
+                info "Public key copied to clipboard via xclip"
+            elif command -v pbcopy >/dev/null 2>&1; then
+                pbcopy < "${PERSONAL_KEY}.pub"
+                info "Public key copied to clipboard via pbcopy"
+            fi
+        else
+            info "Skipped key generation. You can import existing keys with 'ssh-import' or generate later with 'ssh-new'."
+        fi
+    else
+        info "Non-interactive environment; skipping SSH key generation prompt"
+    fi
+fi
+
+# ==============================================================================
+# Final Post-Installation Summary
+# ==============================================================================
+printf "\n%b=== Installation Summary ===%b\n" "${BOLD}${BLUE}" "$NC"
+if [[ -n "${GIT_NAME:-}" && -n "${GIT_EMAIL:-}" ]]; then
+    printf "  %b•%b Git Identity : %s <%s>\n" "$CYAN" "$NC" "$GIT_NAME" "$GIT_EMAIL"
+else
+    printf "  %b•%b Git Identity : %s\n" "$YELLOW" "$NC" "Template at ~/.config/git/config.local"
+fi
+
+if [[ -f "$PERSONAL_KEY" ]]; then
+    printf "  %b•%b Personal SSH : %s\n" "$GREEN" "$NC" "$PERSONAL_KEY"
+else
+    printf "  %b•%b Personal SSH : %s\n" "$YELLOW" "$NC" "Not generated (run 'ssh-new' or 'ssh-import')"
+fi
+
+printf "  %b•%b Default Shell: %s\n" "$CYAN" "$NC" "${ZSH_PATH:-zsh}"
+
 printf "\n%bInstallation completed successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"

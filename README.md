@@ -12,19 +12,9 @@ cd ~/.dotfiles
 make install
 ```
 
-### Initial Post-Install Setup
-
-1. **Configure Git Identity (Untracked)**:
-   ```bash
-   cp ~/.config/git/config.local.example ~/.config/git/config.local
-   # Edit with your name and email
-   ```
-
-2. **Generate your default SSH key**:
-   ```bash
-   ssh-new personal
-   # Public key is automatically copied to clipboard; paste into GitHub/GitLab
-   ```
+During installation, the installer will interactively prompt for:
+1. **Git Author Name & Email**: Automatically provisions `~/.config/git/config.local`.
+2. **Personal SSH Key Generation**: Optionally creates an `ed25519` key in `~/.ssh/keys/personal/` and copies the public key to your clipboard (or skips if you already have existing keys/backups).
 
 ---
 
