@@ -41,14 +41,14 @@ if command -v bat >/dev/null 2>&1; then
 fi
 
 # Web browser resolution
-if command -v firefox >/dev/null 2>&1; then
-    export BROWSER="firefox"
-elif command -v brave-origin >/dev/null 2>&1; then
+if command -v brave-origin >/dev/null 2>&1; then
     export BROWSER="brave-origin"
 elif command -v brave-browser >/dev/null 2>&1; then
     export BROWSER="brave-browser"
 elif command -v brave >/dev/null 2>&1; then
     export BROWSER="brave"
+elif command -v firefox >/dev/null 2>&1; then
+    export BROWSER="firefox"
 elif command -v xdg-open >/dev/null 2>&1; then
     export BROWSER="xdg-open"
 fi
