@@ -131,17 +131,71 @@ pubkey() {
         return 1
     fi
 
-    if command -v wl-copy >/dev/null 2>&1; then
-        wl-copy < "$key_path"
-        echo "Copied '$key_path' to clipboard via wl-copy."
-    elif command -v xclip >/dev/null 2>&1; then
-        xclip -selection clipboard < "$key_path"
-        echo "Copied '$key_path' to clipboard via xclip."
-    elif command -v pbcopy >/dev/null 2>&1; then
-        pbcopy < "$key_path"
-        echo "Copied '$key_path' to clipboard via pbcopy."
+    local key_content=""
+    # Extract the public key as a single sanitized line
+    key_content="$(grep -v '^[[:space:]]*$' "$key_path" | head -n 1 | tr -d '\r\n')"
+
+    if [[ -z "$key_content" ]]; then
+        echo "Error: Key file '$key_path' is empty or invalid." >&2
+        return 1
+    fi
+
+    local copied=0
+    local method=""
+
+    # 1. Wayland clipboard
+    if command -v wl-copy >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+        if printf '%s' "$key_content" | wl-copy 2>/dev/null; then
+            copied=1
+            method="wl-copy"
+        fi
+    fi
+
+    # 2. X11 clipboard (xclip)
+    if [[ $copied -eq 0 ]] && command -v xclip >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
+        if printf '%s' "$key_content" | xclip -selection clipboard 2>/dev/null; then
+            copied=1
+            method="xclip"
+        fi
+    fi
+
+    # 3. X11 clipboard (xsel)
+    if [[ $copied -eq 0 ]] && command -v xsel >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
+        if printf '%s' "$key_content" | xsel --clipboard --input 2>/dev/null; then
+            copied=1
+            method="xsel"
+        fi
+    fi
+
+    # 4. macOS clipboard
+    if [[ $copied -eq 0 ]] && command -v pbcopy >/dev/null 2>&1; then
+        if printf '%s' "$key_content" | pbcopy 2>/dev/null; then
+            copied=1
+            method="pbcopy"
+        fi
+    fi
+
+    # 5. Terminal OSC 52 sequence (works over SSH and in all modern terminals without GUI tools)
+    local b64_key
+    b64_key="$(printf '%s' "$key_content" | base64 | tr -d '\r\n')"
+    if [[ -n "${TMUX:-}" ]]; then
+        printf '\ePtmux;\e\e]52;c;%s\a\e\\' "$b64_key" >/dev/tty 2>/dev/null || true
     else
-        cat "$key_path"
+        printf '\e]52;c;%s\a' "$b64_key" >/dev/tty 2>/dev/null || true
+    fi
+
+    if [[ $copied -eq 0 ]]; then
+        method="OSC 52 (terminal clipboard)"
+    fi
+
+    # Output formatting
+    if [[ -t 1 ]]; then
+        echo "✓ Public key copied to clipboard via ${method}."
+        echo "  Source: $key_path"
+        echo ""
+        echo "$key_content"
+    else
+        printf '%s\n' "$key_content"
     fi
 }
 
