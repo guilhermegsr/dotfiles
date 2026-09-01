@@ -1,6 +1,8 @@
 [tools]
 # Runtimes & Languages
 bun = "latest"
+go = "latest"
+java = "25"
 node = "lts"
 python = "3.12"
 rust = "stable"
