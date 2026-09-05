@@ -54,7 +54,7 @@ plugin_lock="$ROOT/locks/zsh-plugins.lock"
 plugin_tmp="$(mktemp)"
 {
     echo "# name url commit branch — bump with: make update"
-    while IFS= read -r name url sha branch; do
+    while read -r name url sha branch; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
         new_sha="$(git ls-remote "$url" "refs/heads/${branch}" | awk '{print $1}')"
         if [[ -z "$new_sha" ]]; then
@@ -70,7 +70,7 @@ mv "$plugin_tmp" "$plugin_lock"
 PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 if command -v git >/dev/null 2>&1 && [[ -d "$PLUGIN_DIR" ]]; then
     echo "==> Checking out pinned plugins locally"
-    while IFS= read -r name url sha branch; do
+    while read -r name url sha branch; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
         if [[ -d "$PLUGIN_DIR/$name/.git" ]]; then
             git -C "$PLUGIN_DIR/$name" fetch --depth 1 origin "$sha"

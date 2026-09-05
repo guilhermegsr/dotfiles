@@ -124,7 +124,7 @@ PLUGIN_DIR="$DATA_DIR/zsh/plugins"
 mkdir -p "$PLUGIN_DIR"
 
 if command -v git >/dev/null 2>&1; then
-    while IFS= read -r plugin_name plugin_url plugin_sha _plugin_branch; do
+    while read -r plugin_name plugin_url plugin_sha _plugin_branch; do
         [[ -z "${plugin_name:-}" || "$plugin_name" == \#* ]] && continue
         install_plugin_at_sha "$plugin_name" "$plugin_url" "$plugin_sha"
     done <"$DOTFILES_DIR/locks/zsh-plugins.lock"

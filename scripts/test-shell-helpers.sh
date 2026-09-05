@@ -15,6 +15,16 @@ pass() {
     echo "OK $*"
 }
 
+n=0
+while read -r plugin_name plugin_url plugin_sha _plugin_branch; do
+    [[ -z "${plugin_name:-}" || "$plugin_name" == \#* ]] && continue
+    [[ "$plugin_sha" =~ ^[0-9a-f]{7,40}$ ]] || fail "invalid plugin SHA for $plugin_name: '$plugin_sha'"
+    [[ "$plugin_url" == https://* ]] || fail "invalid plugin URL for $plugin_name: '$plugin_url'"
+    n=$((n + 1))
+done <"$ROOT/locks/zsh-plugins.lock"
+[[ "$n" -ge 1 ]] || fail "no plugins parsed from zsh-plugins.lock"
+pass "parsed $n plugin lock entries"
+
 zsh -c "
 set -e
 source '$ROOT/zsh/config/functions.zsh'
