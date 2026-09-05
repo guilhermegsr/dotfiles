@@ -22,3 +22,5 @@ zoxide = "latest"
 
 [settings]
 legacy_version_file = true
+# Install and upgrade use mise.lock checksums (bump with `make update`)
+locked = true

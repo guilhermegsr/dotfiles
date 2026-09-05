@@ -1,5 +1,5 @@
 # Local Git configuration (not committed to git)
-# Copy to ~/.config/git/config.local and configure your personal info:
+# Lives at ~/.config/git/config.local as a real file, outside the git working tree.
 
 [user]
     name = Your Name

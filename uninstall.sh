@@ -59,6 +59,9 @@ unlink_file() {
 restore_latest_backup() {
     local target="$1"
     local latest_backup
+    if [[ -e "$target" ]]; then
+        return 0
+    fi
     latest_backup="$(find "$(dirname "$target")" -maxdepth 1 -name "$(basename "$target").bak.*" 2>/dev/null | sort | tail -n 1)"
     if [[ -n "$latest_backup" && -e "$latest_backup" ]]; then
         info "Found backup '$latest_backup'; restoring to '$target'..."
@@ -71,17 +74,33 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 section "Reverting symlinks and restoring backups..."
+unlink_file "$DOTFILES_DIR/zsh/.zshrc" "$CONFIG_DIR/zsh/.zshrc"
+restore_latest_backup "$CONFIG_DIR/zsh/.zshrc"
+unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$CONFIG_DIR/zsh/.zshenv"
+restore_latest_backup "$CONFIG_DIR/zsh/.zshenv"
+unlink_file "$DOTFILES_DIR/zsh/config" "$CONFIG_DIR/zsh/config"
+restore_latest_backup "$CONFIG_DIR/zsh/config"
+unlink_file "$DOTFILES_DIR/zsh/integrations" "$CONFIG_DIR/zsh/integrations"
+restore_latest_backup "$CONFIG_DIR/zsh/integrations"
+
+# Legacy whole-directory symlink from older installs
 unlink_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
 restore_latest_backup "$CONFIG_DIR/zsh"
 
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
+unlink_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
+restore_latest_backup "$CONFIG_DIR/git/config"
+unlink_file "$DOTFILES_DIR/git/ignore" "$CONFIG_DIR/git/ignore"
+restore_latest_backup "$CONFIG_DIR/git/ignore"
 unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
 restore_latest_backup "$CONFIG_DIR/git"
 
 unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 restore_latest_backup "$CONFIG_DIR/mise/config.toml"
+unlink_file "$DOTFILES_DIR/mise/mise.lock" "$CONFIG_DIR/mise/mise.lock"
+restore_latest_backup "$CONFIG_DIR/mise/mise.lock"
 
 unlink_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 restore_latest_backup "$CONFIG_DIR/tmux"

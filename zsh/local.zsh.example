@@ -1,5 +1,5 @@
 # Machine-specific environment variables and overrides (untracked)
-# Copy to ~/.config/zsh/local.zsh
+# Lives at ~/.config/zsh/local.zsh as a real file, outside the git working tree.
 
 # export GITHUB_TOKEN="ghp_..."
 # export OPENAI_API_KEY="sk-..."
