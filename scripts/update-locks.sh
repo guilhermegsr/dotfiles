@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Re-resolve pinned bootstrap artifacts, Zsh plugin SHAs, and the Mise lockfile.
-# Run via `make update`. Review the resulting git diff before committing.
 
 set -euo pipefail
 
@@ -24,7 +22,7 @@ sha256_from_sums() {
     '
 }
 
-echo "==> Bumping bootstrap pins (Mise CLI + Nerd Font)..."
+echo "==> Updating bootstrap pins"
 mise_tag="$(github_latest_tag jdx/mise)"
 font_tag="$(github_latest_tag ryanoasis/nerd-fonts)"
 font_asset="JetBrainsMono.tar.xz"
@@ -36,9 +34,7 @@ mise_sha_macos_arm64="$(sha256_from_sums "https://github.com/jdx/mise/releases/d
 font_sha="$(sha256_from_sums "https://github.com/ryanoasis/nerd-fonts/releases/download/${font_tag}/SHA-256.txt" "$font_asset")"
 
 cat >"$ROOT/locks/bootstrap.lock" <<EOF
-# Pinned bootstrap artifacts for install.sh.
-# Bump with: make update
-# Format: key=value (no spaces around =)
+# key=value — bump with: make update
 
 mise_version=${mise_tag}
 mise_sha256_linux_x64=${mise_sha_linux_x64}
@@ -53,17 +49,16 @@ EOF
 echo "    Mise CLI ${mise_tag}"
 echo "    Nerd Font ${font_tag} / ${font_asset}"
 
-echo "==> Bumping Zsh plugin commit SHAs..."
+echo "==> Updating plugin SHAs"
 plugin_lock="$ROOT/locks/zsh-plugins.lock"
 plugin_tmp="$(mktemp)"
 {
-    echo "# name url commit branch"
-    echo "# Bump with: make update"
+    echo "# name url commit branch — bump with: make update"
     while IFS= read -r name url sha branch; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
         new_sha="$(git ls-remote "$url" "refs/heads/${branch}" | awk '{print $1}')"
         if [[ -z "$new_sha" ]]; then
-            echo "error: failed to resolve HEAD for $name ($url $branch)" >&2
+            echo "error: could not resolve HEAD for $name at $url $branch" >&2
             exit 1
         fi
         echo "$name $url $new_sha $branch"
@@ -74,27 +69,26 @@ mv "$plugin_tmp" "$plugin_lock"
 
 PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 if command -v git >/dev/null 2>&1 && [[ -d "$PLUGIN_DIR" ]]; then
-    echo "==> Checking out pinned plugin SHAs locally..."
+    echo "==> Checking out pinned plugins locally"
     while IFS= read -r name url sha branch; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
         if [[ -d "$PLUGIN_DIR/$name/.git" ]]; then
             git -C "$PLUGIN_DIR/$name" fetch --depth 1 origin "$sha"
             git -C "$PLUGIN_DIR/$name" checkout --detach "$sha" --quiet
-            echo "    updated $name"
+            echo "    Updated $name"
         fi
     done <"$plugin_lock"
 fi
 
-echo "==> Refreshing Mise tool lockfile..."
+echo "==> Updating Mise pins"
 if command -v mise >/dev/null 2>&1; then
     mise trust "$ROOT/mise/config.toml" >/dev/null
-    (cd "$ROOT" && mise lock --bump -p linux-x64,linux-arm64,macos-x64,macos-arm64)
-    if command -v mise >/dev/null 2>&1; then
-        echo "==> Installing locked Mise tools..."
-        MISE_LOCKED=1 mise install --locked || echo "Warning: mise install --locked reported errors"
-    fi
+    # upgrade --bump rewrites pins in config.toml; lock refreshes checksums.
+    (cd "$ROOT" && mise upgrade --bump && mise lock -p linux-x64,linux-arm64,macos-x64,macos-arm64)
+    echo "==> Installing locked Mise tools"
+    MISE_LOCKED=1 mise install --locked || echo "warning: mise install --locked failed"
 else
-    echo "Notice: mise not found; skipped mise.lock bump."
+    echo "Mise was not found; skipped the lockfile update."
 fi
 
-echo "==> Lock bump complete. Commit locks/ and mise/mise.lock after reviewing the diff."
+echo "==> Done. Review and commit locks/, mise/config.toml, and mise/mise.lock."

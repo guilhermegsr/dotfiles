@@ -1,6 +1,4 @@
-# Pinned bootstrap artifacts for install.sh.
-# Bump with: make update
-# Format: key=value (no spaces around =)
+# key=value — bump with: make update
 
 mise_version=v2026.9.1
 mise_sha256_linux_x64=063dda9149ab6be53da877c2d176afe0eac68e64cf8ca295bd0528720701c65d

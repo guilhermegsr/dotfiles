@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Shared helpers for reading pin files and verifying checksums.
-# Sourced by install.sh and scripts/update-locks.sh.
 
 verify_sha256() {
     local file="$1"
@@ -12,7 +10,7 @@ verify_sha256() {
     elif command -v shasum >/dev/null 2>&1; then
         actual="$(shasum -a 256 "$file" | awk '{print $1}')"
     else
-        echo "error: sha256sum or shasum is required to verify checksums" >&2
+        echo "error: sha256sum or shasum is required" >&2
         return 1
     fi
 
@@ -34,21 +32,18 @@ os_triple() {
         Darwin-x86_64) echo macos-x64 ;;
         Darwin-arm64) echo macos-arm64 ;;
         *)
-            echo "error: unsupported platform ${sys}-${arch}" >&2
+            echo "error: unsupported platform: ${sys}-${arch}" >&2
             return 1
             ;;
     esac
 }
 
-# Reads locks/bootstrap.lock into caller-scoped variables:
-#   LOCK_MISE_VERSION LOCK_FONT_TAG LOCK_FONT_ASSET LOCK_FONT_SHA256
-#   LOCK_MISE_SHA256_<triple with underscores>
 load_bootstrap_lock() {
     local file="$1"
     local key value
 
     if [[ ! -f "$file" ]]; then
-        echo "error: missing bootstrap lock '$file'" >&2
+        echo "error: missing bootstrap lock: $file" >&2
         return 1
     fi
 
@@ -75,14 +70,14 @@ load_bootstrap_lock() {
             mise_sha256_macos_x64) LOCK_MISE_SHA256_macos_x64="$value" ;;
             mise_sha256_macos_arm64) LOCK_MISE_SHA256_macos_arm64="$value" ;;
             *)
-                echo "error: unknown bootstrap lock key '$key'" >&2
+                echo "error: unknown bootstrap lock key: $key" >&2
                 return 1
                 ;;
         esac
     done <"$file"
 
     if [[ -z "$LOCK_MISE_VERSION" || -z "$LOCK_FONT_TAG" || -z "$LOCK_FONT_ASSET" || -z "$LOCK_FONT_SHA256" ]]; then
-        echo "error: incomplete bootstrap lock '$file'" >&2
+        echo "error: incomplete bootstrap lock: $file" >&2
         return 1
     fi
 }

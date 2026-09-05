@@ -5,7 +5,10 @@ lockfile_version = 1
 [[tools.bat]]
 version = "0.26.1"
 backend = "aqua:sharkdp/bat"
-specifiers = ["latest"]
+specifiers = [
+    "0.26.1",
+    "latest",
+]
 
 [tools.bat."platforms.linux-arm64"]
 checksum = "sha256:422eb73e11c854fddd99f5ca8461c2f1d6e6dce0a2a8c3d5daade5ffcb6564aa"
@@ -30,7 +33,10 @@ url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549786"
 [[tools.bun]]
 version = "1.4.0"
 backend = "core:bun"
-specifiers = ["latest"]
+specifiers = [
+    "1.4.0",
+    "latest",
+]
 
 [tools.bun."platforms.linux-arm64"]
 checksum = "sha256:4b1a332ee861983eb93bcfe6f770fff94e3e31b2c388bdaea3c8ed35e58eed0e"
@@ -71,7 +77,10 @@ url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-darwin-x6
 [[tools.eza]]
 version = "0.23.5"
 backend = "aqua:eza-community/eza"
-specifiers = ["latest"]
+specifiers = [
+    "0.23.5",
+    "latest",
+]
 
 [tools.eza."platforms.linux-arm64"]
 checksum = "sha256:40b87ae8628aa2ff0f0d2dc24ab52f689631366385c3da630bae745671fd71ec"
@@ -86,7 +95,10 @@ url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228
 [[tools.fd]]
 version = "10.5.0"
 backend = "aqua:sharkdp/fd"
-specifiers = ["latest"]
+specifiers = [
+    "10.5.0",
+    "latest",
+]
 
 [tools.fd."platforms.linux-arm64"]
 checksum = "sha256:c0ee43802e3313a317c5af2f4eabd6ba13eeedd595af9775f05e18a13ac4f52c"
@@ -106,7 +118,10 @@ url_api = "https://api.github.com/repos/sharkdp/fd/releases/assets/530481346"
 [[tools.fzf]]
 version = "0.74.3"
 backend = "aqua:junegunn/fzf"
-specifiers = ["latest"]
+specifiers = [
+    "0.74.3",
+    "latest",
+]
 
 [tools.fzf."platforms.linux-arm64"]
 checksum = "sha256:4a17a17b46bd0c4873e995533de508995c11572c0be0664a5dbcf13f60463046"
@@ -131,7 +146,10 @@ url_api = "https://api.github.com/repos/junegunn/fzf/releases/assets/517537094"
 [[tools.gh]]
 version = "2.98.0"
 backend = "aqua:cli/cli"
-specifiers = ["latest"]
+specifiers = [
+    "2.98.0",
+    "latest",
+]
 
 [tools.gh."platforms.linux-arm64"]
 checksum = "sha256:cf689084f3a3618f7eae4a2420d335d74626d65f5e594b9828d125d69f800d86"
@@ -160,7 +178,10 @@ provenance = "github-attestations"
 [[tools.go]]
 version = "1.27.0"
 backend = "core:go"
-specifiers = ["latest"]
+specifiers = [
+    "1.27.0",
+    "latest",
+]
 
 [tools.go."platforms.linux-arm64"]
 checksum = "sha256:51798d2c42d0e1c6ed7fd9f48728b4193abac9e8aad6dbac2fe96a81f5909bda"
@@ -181,7 +202,10 @@ url = "https://dl.google.com/go/go1.27.0.darwin-amd64.tar.gz"
 [[tools.java]]
 version = "25.0.2"
 backend = "core:java"
-specifiers = ["25"]
+specifiers = [
+    "25",
+    "25.0.2",
+]
 
 [tools.java.options]
 shorthand_vendor = "openjdk"
@@ -205,7 +229,10 @@ url = "https://download.java.net/java/GA/jdk25.0.2/b1e0dfa218384cb9959bdcb897162
 [[tools.jq]]
 version = "1.8.2"
 backend = "aqua:jqlang/jq"
-specifiers = ["latest"]
+specifiers = [
+    "1.8.2",
+    "latest",
+]
 
 [tools.jq."platforms.linux-arm64"]
 checksum = "sha256:8b85c817833814ddca00a144c33705546355afccf0cf39b188f3cdb48b852309"
@@ -234,7 +261,10 @@ provenance = "github-attestations"
 [[tools.node]]
 version = "24.20.0"
 backend = "core:node"
-specifiers = ["lts"]
+specifiers = [
+    "24.20.0",
+    "lts",
+]
 
 [tools.node."platforms.linux-arm64"]
 checksum = "sha256:3515603e2487879a39bc75716f1a2affd027500c64ba50e845cf72cb33219013"
@@ -255,7 +285,10 @@ url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-x64.tar.gz"
 [[tools.python]]
 version = "3.12.14"
 backend = "core:python"
-specifiers = ["3.12"]
+specifiers = [
+    "3.12",
+    "3.12.14",
+]
 
 [tools.python."platforms.linux-arm64"]
 checksum = "sha256:577b4bec0793ad1ff0cbff9adbd0df078eddde38a4c41bf5d83ad381a85ee39d"
@@ -280,7 +313,10 @@ provenance = "github-attestations"
 [[tools.ripgrep]]
 version = "15.2.0"
 backend = "aqua:BurntSushi/ripgrep"
-specifiers = ["latest"]
+specifiers = [
+    "15.2.0",
+    "latest",
+]
 
 [tools.ripgrep."platforms.linux-arm64"]
 checksum = "sha256:a740b91c82eaf9914cfedd353572f2791cbe0162c84101ee0951058f4dcbc90d"
@@ -310,7 +346,10 @@ specifiers = ["stable"]
 [[tools.shellcheck]]
 version = "0.11.0"
 backend = "aqua:koalaman/shellcheck"
-specifiers = ["latest"]
+specifiers = [
+    "0.11.0",
+    "latest",
+]
 
 [tools.shellcheck."platforms.linux-arm64"]
 checksum = "sha256:12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588"
@@ -335,7 +374,10 @@ url_api = "https://api.github.com/repos/koalaman/shellcheck/releases/assets/2790
 [[tools.tmux]]
 version = "3.7c"
 backend = "aqua:tmux/tmux-builds"
-specifiers = ["latest"]
+specifiers = [
+    "3.7c",
+    "latest",
+]
 
 [tools.tmux."platforms.linux-arm64"]
 checksum = "sha256:29dcb978da2a4b0cf6790f9e004865dac239a3ba03bbf776dddacce23d03831b"
@@ -360,7 +402,10 @@ url_api = "https://api.github.com/repos/tmux/tmux-builds/releases/assets/5287348
 [[tools.uv]]
 version = "0.12.8"
 backend = "aqua:astral-sh/uv"
-specifiers = ["latest"]
+specifiers = [
+    "0.12.8",
+    "latest",
+]
 
 [tools.uv."platforms.linux-arm64"]
 checksum = "sha256:ba8661f4fd207c8e94814191598e619b355ac10d5014e851e21eb800f9ef2b00"
@@ -389,7 +434,10 @@ provenance = "github-attestations"
 [[tools.zoxide]]
 version = "0.10.0"
 backend = "aqua:ajeetdsouza/zoxide"
-specifiers = ["latest"]
+specifiers = [
+    "0.10.0",
+    "latest",
+]
 
 [tools.zoxide."platforms.linux-arm64"]
 checksum = "sha256:f1f16c5d6298d63dee467eedea1cdcd8490e43e493bea43acd416dc9033ef641"
