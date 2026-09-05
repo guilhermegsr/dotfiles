@@ -18,16 +18,15 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zsh curl git shellcheck
+          sudo apt-get install -y zsh curl git shellcheck openssl
 
       - name: Static analysis with ShellCheck
         run: |
-          shellcheck install.sh uninstall.sh
+          shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh
 
       - name: Validate Bash script syntax
         run: |
-          bash -n install.sh
-          bash -n uninstall.sh
+          bash -n install.sh uninstall.sh backup.sh restore.sh scripts/*.sh
 
       - name: Validate Zsh script syntax
         run: |
@@ -35,18 +34,33 @@ jobs:
             zsh -n "$f"
           done
 
+      - name: Backup and restore tests
+        run: |
+          ./scripts/test-backup-restore.sh
+
       - name: Test installation script
         run: |
           ./install.sh
 
-      - name: Verify generated symlinks
+      - name: Verify generated layout
         run: |
-          test -L "$HOME/.config/zsh"
+          test -d "$HOME/.config/zsh"
+          test -L "$HOME/.config/zsh/.zshrc"
+          test -L "$HOME/.config/zsh/.zshenv"
+          test -L "$HOME/.config/zsh/config"
+          test -L "$HOME/.config/zsh/integrations"
+          test -f "$HOME/.config/zsh/local.zsh"
+          test ! -L "$HOME/.config/zsh/local.zsh"
           test -L "$HOME/.zshenv"
-          test -L "$HOME/.config/git"
+          test -d "$HOME/.config/git"
+          test -L "$HOME/.config/git/config"
+          test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.config/mise/config.toml"
+          test -L "$HOME/.config/mise/mise.lock"
           test -L "$HOME/.config/tmux"
           test -L "$HOME/.config/alacritty"
+          test -d "$HOME/.ssh/conf.d"
+          test -d "$HOME/.ssh/keys/personal"
 
       - name: Test uninstallation script
         run: |
@@ -54,9 +68,11 @@ jobs:
 
       - name: Verify symlink teardown
         run: |
-          ! test -L "$HOME/.config/zsh"
+          ! test -L "$HOME/.config/zsh/.zshrc"
           ! test -L "$HOME/.zshenv"
-          ! test -L "$HOME/.config/git"
+          ! test -L "$HOME/.config/git/config"
           ! test -L "$HOME/.config/mise/config.toml"
           ! test -L "$HOME/.config/tmux"
           ! test -L "$HOME/.config/alacritty"
+          test -f "$HOME/.config/zsh/local.zsh"
+          test ! -L "$HOME/.config/zsh/local.zsh"
