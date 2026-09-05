@@ -52,6 +52,9 @@ Usage: backup.sh [--plain] [output_path]
 
 Encryption is on by default. Prefers age (authenticated); falls back to
 OpenSSL AES-256-CBC with PBKDF2 (600000 iterations).
+
+Set DOTFILES_OPENSSL_PASS_FILE to a 0600 file containing the passphrase
+to encrypt non-interactively with OpenSSL (used by tests/automation).
 EOF
 }
 
@@ -115,9 +118,13 @@ done
 
 section "Configuring destination and encryption..."
 
+OPENSSL_PASS_FILE="${DOTFILES_OPENSSL_PASS_FILE:-}"
+
 ENCRYPT=true
 if [[ "$PLAIN" == true ]]; then
     ENCRYPT=false
+elif [[ -n "$OPENSSL_PASS_FILE" ]]; then
+    ENCRYPT=true
 elif [[ -t 0 ]]; then
     read -r -p "  Encrypt archive with a password? [Y/n]: " encrypt_choice
     if [[ "${encrypt_choice:-}" =~ ^[Nn] ]]; then
@@ -125,7 +132,7 @@ elif [[ -t 0 ]]; then
     fi
 else
     error "Encryption is on by default and requires a TTY for the passphrase."
-    error "Re-run interactively, or pass --plain to write an unencrypted archive."
+    error "Re-run interactively, pass --plain, or set DOTFILES_OPENSSL_PASS_FILE."
     exit 1
 fi
 
@@ -133,7 +140,19 @@ ENCRYPT_TOOL=""
 DEFAULT_ARCHIVE_NAME="dotfiles-backup-${TIMESTAMP}.tar.gz"
 
 if [[ "$ENCRYPT" == true ]]; then
-    if command -v age >/dev/null 2>&1; then
+    if [[ -n "$OPENSSL_PASS_FILE" ]]; then
+        if [[ ! -f "$OPENSSL_PASS_FILE" ]]; then
+            error "DOTFILES_OPENSSL_PASS_FILE '$OPENSSL_PASS_FILE' does not exist."
+            exit 1
+        fi
+        if ! command -v openssl >/dev/null 2>&1; then
+            error "'openssl' binary not found; unable to encrypt archive."
+            exit 1
+        fi
+        ENCRYPT_TOOL="openssl"
+        DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.enc"
+        info "Using OpenSSL AES-256-CBC (PBKDF2, ${OPENSSL_ITER} iterations) via pass file"
+    elif command -v age >/dev/null 2>&1; then
         ENCRYPT_TOOL="age"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.age"
         info "Using age (authenticated encryption)"
@@ -186,7 +205,11 @@ if [[ "$ENCRYPT" == true ]]; then
             fi
             ;;
         openssl)
-            if ! openssl enc -aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -in "$TEMP_TAR" -out "$OUTPUT_FILE"; then
+            openssl_args=(-aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -in "$TEMP_TAR" -out "$OUTPUT_FILE")
+            if [[ -n "$OPENSSL_PASS_FILE" ]]; then
+                openssl_args+=(-pass "file:${OPENSSL_PASS_FILE}")
+            fi
+            if ! openssl enc "${openssl_args[@]}"; then
                 error "Encryption failed."
                 rm -f "$OUTPUT_FILE"
                 exit 1

@@ -51,6 +51,8 @@ Usage: restore.sh [--yes] [backup_archive]
 
 Only members under the backup allowlist are restored. Archives containing
 '..', absolute paths, symlinks, or unexpected prefixes are rejected.
+
+Set DOTFILES_OPENSSL_PASS_FILE to decrypt .enc archives non-interactively.
 EOF
 }
 
@@ -213,12 +215,21 @@ elif [[ "$BACKUP_FILE" == *.enc ]]; then
         exit 1
     fi
     info "Decrypting OpenSSL archive..."
-    if [[ ! -t 0 ]]; then
-        error "OpenSSL password decryption requires a TTY."
+    OPENSSL_PASS=""
+    if [[ -n "${DOTFILES_OPENSSL_PASS_FILE:-}" ]]; then
+        if [[ ! -f "$DOTFILES_OPENSSL_PASS_FILE" ]]; then
+            error "DOTFILES_OPENSSL_PASS_FILE '$DOTFILES_OPENSSL_PASS_FILE' does not exist."
+            exit 1
+        fi
+        OPENSSL_PASS="$(<"$DOTFILES_OPENSSL_PASS_FILE")"
+        OPENSSL_PASS="${OPENSSL_PASS%%$'\n'*}"
+    elif [[ -t 0 ]]; then
+        read -r -s -p "  Enter decryption passphrase: " OPENSSL_PASS
+        printf "\n"
+    else
+        error "OpenSSL password decryption requires a TTY or DOTFILES_OPENSSL_PASS_FILE."
         exit 1
     fi
-    read -r -s -p "  Enter decryption passphrase: " OPENSSL_PASS
-    printf "\n"
     if openssl_decrypt_with_iter "$OPENSSL_ITER" "$BACKUP_FILE" "$TEMP_TAR" "$OPENSSL_PASS"; then
         info "Decrypted with PBKDF2 iter=${OPENSSL_ITER}"
     elif openssl_decrypt_with_iter "$OPENSSL_ITER_LEGACY" "$BACKUP_FILE" "$TEMP_TAR" "$OPENSSL_PASS"; then
