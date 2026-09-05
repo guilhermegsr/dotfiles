@@ -14,8 +14,7 @@ source "$ZSH_CONFIG_HOME/integrations/zoxide.zsh"
 
 source "$ZSH_CONFIG_HOME/config/prompt.zsh"
 
-# Machine-specific untracked overrides
 [[ -f "$ZSH_CONFIG_HOME/local.zsh" ]] && source "$ZSH_CONFIG_HOME/local.zsh"
 
-# Syntax highlighting and autosuggestions must load last
+# syntax-highlighting must load last
 source "$ZSH_CONFIG_HOME/integrations/plugins.zsh"

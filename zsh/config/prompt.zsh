@@ -1,19 +1,23 @@
 zmodload zsh/datetime
 autoload -Uz vcs_info
 autoload -Uz colors && colors
+autoload -Uz add-zsh-hook
 
 setopt PROMPT_SUBST
 
-# VCS Git formatting
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' formats ' %F{242}on%f %F{magenta}󰘬 %b%f'
 zstyle ':vcs_info:git:*' actionformats ' %F{242}on%f %F{magenta}󰘬 %b%f %F{yellow}(%a)%f'
 
-# Command execution timer (tracks commands taking >= 2.0s)
 typeset -g _cmd_start_time=0
 typeset -g PROMPT_CMD_DURATION=""
+typeset -g _prompt_git_cache_key=""
+typeset -g _prompt_git_cache_path=""
+typeset -g _prompt_git_cache_divergence=""
+typeset -g _prompt_git_cache_status=""
+typeset -g _prompt_git_cache_vcs=""
 
-preexec() {
+_prompt_preexec() {
     _cmd_start_time=$EPOCHREALTIME
 }
 
@@ -34,54 +38,78 @@ _cmd_duration() {
     fi
 }
 
-# Upstream divergence resolution (ahead/behind counts)
-_git_divergence() {
-    local counts
-    counts="$(git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)" || return
-    local ahead="${counts%%	*}"
-    local behind="${counts#*	}"
-    local -a parts=()
-    (( ahead > 0 )) && parts+=("%F{cyan}⇡${ahead}%f")
-    (( behind > 0 )) && parts+=("%F{magenta}⇣${behind}%f")
-    (( ${#parts} > 0 )) || return
-    print -n " ${(j: :)parts}"
+_prompt_index_mtime() {
+    local git_dir="$1"
+    if stat -c %Y "$git_dir/index" >/dev/null 2>&1; then
+        stat -c %Y "$git_dir/index" 2>/dev/null
+    else
+        stat -f %m "$git_dir/index" 2>/dev/null
+    fi
 }
 
-# Working tree porcelain status parser (+ staged, * unstaged, ? untracked)
-_git_status() {
-    local git_status line
-    local staged=0 unstaged=0 untracked=0
-    local -a indicators=()
+# -uno skips untracked (large trees).
+_prompt_git_from_status() {
+    local header="" line staged=0 unstaged=0
+    local ahead=0 behind=0
+    local -a indicators=() parts=()
 
-    git_status="$(git status --porcelain 2>/dev/null)" || return
-
+    IFS= read -r header
     while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-
-        if [[ "$line" == '??'* ]]; then
-            ((untracked++))
-            continue
-        fi
-
+        [[ -z "$line" || "$line" == '??'* ]] && continue
         [[ "${line[1]}" != ' ' ]] && ((staged++))
         [[ "${line[2]}" != ' ' ]] && ((unstaged++))
-    done <<< "$git_status"
+    done
 
+    if [[ "$header" =~ 'ahead ([0-9]+)' ]]; then
+        ahead="${match[1]}"
+    fi
+    if [[ "$header" =~ 'behind ([0-9]+)' ]]; then
+        behind="${match[1]}"
+    fi
+    (( ahead > 0 )) && parts+=("%F{cyan}⇡${ahead}%f")
+    (( behind > 0 )) && parts+=("%F{magenta}⇣${behind}%f")
     (( staged > 0 )) && indicators+=("%F{green}+${staged}%f")
     (( unstaged > 0 )) && indicators+=("%F{yellow}*${unstaged}%f")
-    (( untracked > 0 )) && indicators+=("%F{blue}?${untracked}%f")
 
-    (( ${#indicators} > 0 )) || return
-
-    print -n " [${(j: :)indicators}]"
+    if (( ${#parts} > 0 )); then
+        PROMPT_GIT_DIVERGENCE=" ${(j: :)parts}"
+    else
+        PROMPT_GIT_DIVERGENCE=""
+    fi
+    if (( ${#indicators} > 0 )); then
+        PROMPT_GIT_STATUS=" [${(j: :)indicators}]"
+    else
+        PROMPT_GIT_STATUS=""
+    fi
 }
 
-# Assemble prompt context on precmd
 _prompt_update() {
-    vcs_info
     PROMPT_CMD_DURATION="$(_cmd_duration)"
 
-    local git_info
+    local git_dir git_info
+    if ! git_dir="$(git rev-parse --git-dir 2>/dev/null)"; then
+        PROMPT_PATH="%2~"
+        PROMPT_GIT_DIVERGENCE=""
+        PROMPT_GIT_STATUS=""
+        vcs_info_msg_0_=""
+        return
+    fi
+
+    local head index_mtime cache_key
+    head="$(git rev-parse HEAD 2>/dev/null || echo detached)"
+    index_mtime="$(_prompt_index_mtime "$git_dir")"
+    cache_key="${git_dir}:${head}:${index_mtime}"
+
+    if [[ "$cache_key" == "$_prompt_git_cache_key" ]]; then
+        PROMPT_PATH="$_prompt_git_cache_path"
+        PROMPT_GIT_DIVERGENCE="$_prompt_git_cache_divergence"
+        PROMPT_GIT_STATUS="$_prompt_git_cache_status"
+        vcs_info_msg_0_="$_prompt_git_cache_vcs"
+        return
+    fi
+
+    vcs_info
+
     if git_info="$(git rev-parse --show-toplevel --show-prefix 2>/dev/null)"; then
         local -a lines=("${(f)git_info}")
         local repo_root="${lines[1]}"
@@ -91,21 +119,28 @@ _prompt_update() {
         else
             PROMPT_PATH="${repo_root:t}"
         fi
-        PROMPT_GIT_DIVERGENCE="$(_git_divergence)"
-        PROMPT_GIT_STATUS="$(_git_status)"
+        _prompt_git_from_status < <(git -c color.status=false status --porcelain=v1 -uno -b 2>/dev/null)
     else
         PROMPT_PATH="%2~"
         PROMPT_GIT_DIVERGENCE=""
         PROMPT_GIT_STATUS=""
     fi
+
+    _prompt_git_cache_key="$cache_key"
+    _prompt_git_cache_path="$PROMPT_PATH"
+    _prompt_git_cache_divergence="$PROMPT_GIT_DIVERGENCE"
+    _prompt_git_cache_status="$PROMPT_GIT_STATUS"
+    _prompt_git_cache_vcs="${vcs_info_msg_0_}"
 }
 
-precmd() {
+_prompt_precmd() {
     print ""
     _prompt_update
 }
 
-# Two-line layout with exit code status glyph and duration in RPROMPT
+add-zsh-hook precmd _prompt_precmd
+add-zsh-hook preexec _prompt_preexec
+
 PROMPT='%F{242}in%f %F{cyan}${PROMPT_PATH}%f${vcs_info_msg_0_}${PROMPT_GIT_DIVERGENCE}${PROMPT_GIT_STATUS}
  %(?:%F{green}󱞩%f:%F{red}󱞩 [%?]%f) '
 

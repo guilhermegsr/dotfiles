@@ -1,11 +1,8 @@
-# Machine-specific environment variables and overrides (untracked)
-# Lives at ~/.config/zsh/local.zsh as a real file, outside the git working tree.
+# ~/.config/zsh/local.zsh (untracked)
 
 # export GITHUB_TOKEN="ghp_..."
 # export OPENAI_API_KEY="sk-..."
 # export ANTHROPIC_API_KEY="sk-ant-..."
 
 # export PATH="$HOME/.cargo/bin:$PATH"
-# export PATH="$HOME/go/bin:$PATH"
-
 # alias work="cd ~/Projects/work"

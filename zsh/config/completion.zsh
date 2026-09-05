@@ -11,10 +11,7 @@ setopt AUTO_MENU
 setopt AUTO_LIST
 setopt PATH_DIRS
 
-# Case-insensitive, partial-word, and substring matching
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
-
-# Interactive menu selection and formatting
 zstyle ':completion:*' menu select
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' verbose yes
@@ -22,16 +19,12 @@ zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
 zstyle ':completion:*:messages' format '%F{purple}-- %d --%f'
 zstyle ':completion:*:warnings' format '%F{red}-- No matches found --%f'
 zstyle ':completion:*' group-name ''
-
-# Persistent completion cache
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "$CACHE_DIR/zcompcache"
-
-# Process list styling for kill
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
-# Invalidation policy: regenerate zcompdump at most once every 24 hours
+# Rebuild dump at most once per day; -C skips the security check on cache hits.
 setopt EXTENDED_GLOB
 if [[ ! -f "$ZCOMPDUMP" || -n "$ZCOMPDUMP"(#qN.m+1) ]]; then
     compinit -d "$ZCOMPDUMP"
@@ -40,7 +33,6 @@ else
     compinit -C -d "$ZCOMPDUMP"
 fi
 
-# Compile dump to bytecode (.zwc) to eliminate parsing overhead on startup
 if [[ -s "$ZCOMPDUMP" && (! -s "${ZCOMPDUMP}.zwc" || "$ZCOMPDUMP" -nt "${ZCOMPDUMP}.zwc") ]]; then
     zcompile "$ZCOMPDUMP" 2>/dev/null || true
 fi

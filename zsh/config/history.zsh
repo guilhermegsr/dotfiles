@@ -2,9 +2,13 @@ HIST_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 HISTFILE="$HIST_DIR/history"
 
 mkdir -p "$HIST_DIR"
+[[ -f "$HISTFILE" ]] || : >"$HISTFILE"
+chmod 600 "$HISTFILE"
 
 HISTSIZE=50000
 SAVEHIST=50000
+
+HISTORY_IGNORE='(export *TOKEN*|export *SECRET*|export *API_KEY*|export *PASS*|ssh-add*|openssl *)'
 
 setopt EXTENDED_HISTORY
 setopt SHARE_HISTORY

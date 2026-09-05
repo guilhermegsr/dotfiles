@@ -6,7 +6,6 @@ if [[ -f "$PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
     ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 fi
 
-# Must be loaded last to properly highlight syntax across dynamic widgets and completions
 if [[ -f "$PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
     source "$PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 fi

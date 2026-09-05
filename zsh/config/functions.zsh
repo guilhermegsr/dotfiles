@@ -1,4 +1,3 @@
-# Create target directory hierarchy and change into it
 mkcd() {
     if [[ -z "${1:-}" ]]; then
         echo "Usage: mkcd <directory>" >&2
@@ -7,40 +6,105 @@ mkcd() {
     mkdir -p "$1" && cd "$1"
 }
 
-# Universal archive extraction utility
+# True if an archive member would escape the current directory.
+_archive_member_unsafe() {
+    local p="$1"
+
+    [[ "$p" == *$'\n'* || "$p" == *$'\r'* ]] && return 0
+    while [[ "$p" == ./* ]]; do
+        p="${p#./}"
+    done
+    p="${p%/}"
+    [[ -z "$p" || "$p" == /* || "$p" == ~* ]] && return 0
+
+    local rest="$p" part
+    while [[ -n "$rest" ]]; do
+        if [[ "$rest" == */* ]]; then
+            part="${rest%%/*}"
+            rest="${rest#*/}"
+        else
+            part="$rest"
+            rest=""
+        fi
+        if [[ -z "$part" || "$part" == "." || "$part" == ".." ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+_reject_unsafe_archive_members() {
+    local member
+    while IFS= read -r member; do
+        [[ -z "$member" ]] && continue
+        if _archive_member_unsafe "$member"; then
+                echo "Error: refusing to extract unsafe path '$member'" >&2
+            return 1
+        fi
+    done
+}
+
+_list_zip_members() {
+    if command -v zipinfo >/dev/null 2>&1; then
+        zipinfo -1 "$1"
+    elif unzip -Z1 "$1" >/dev/null 2>&1; then
+        unzip -Z1 "$1"
+    else
+        unzip -l "$1" | awk 'NR > 3 && $0 !~ /^[- ]+$/ && NF >= 4 { $1=$2=$3=""; sub(/^ +/, ""); print }'
+    fi
+}
+
 extract() {
     if [[ -z "${1:-}" ]]; then
-        echo "Usage: extract <archive_file>" >&2
+        echo "Usage: extract <archive>" >&2
         return 1
     fi
 
     if [[ ! -f "$1" ]]; then
-        echo "Error: File '$1' not found or is not a regular file." >&2
+        echo "Error: '$1' is not a regular file" >&2
         return 1
     fi
 
     case "$1" in
-        *.tar.bz2)   tar xjf "$1"        ;;
-        *.tar.gz)    tar xzf "$1"        ;;
-        *.bz2)       bunzip2 "$1"        ;;
-        *.rar)       unrar x "$1"        ;;
-        *.gz)        gunzip "$1"         ;;
-        *.tar)       tar xf "$1"         ;;
-        *.tbz2)      tar xjf "$1"        ;;
-        *.tgz)       tar xzf "$1"        ;;
-        *.zip)       unzip "$1"          ;;
-        *.Z)         uncompress "$1"     ;;
-        *.7z)        7z x "$1"           ;;
-        *.tar.xz)    tar xJf "$1"        ;;
-        *.tar.zst)   tar --zstd -xf "$1" ;;
-        *)           echo "Error: Unsupported archive format for '$1'." >&2; return 1 ;;
+        *.tar.bz2|*.tbz2)
+            tar tjf "$1" | _reject_unsafe_archive_members || return 1
+            tar xjf "$1"
+            ;;
+        *.tar.gz|*.tgz)
+            tar tzf "$1" | _reject_unsafe_archive_members || return 1
+            tar xzf "$1"
+            ;;
+        *.tar.xz)
+            tar tJf "$1" | _reject_unsafe_archive_members || return 1
+            tar xJf "$1"
+            ;;
+        *.tar.zst)
+            tar --zstd -tf "$1" | _reject_unsafe_archive_members || return 1
+            tar --zstd -xf "$1"
+            ;;
+        *.tar)
+            tar tf "$1" | _reject_unsafe_archive_members || return 1
+            tar xf "$1"
+            ;;
+        *.zip)
+            _list_zip_members "$1" | _reject_unsafe_archive_members || return 1
+            unzip "$1"
+            ;;
+        *.bz2) bunzip2 "$1" ;;
+        *.gz)  gunzip "$1" ;;
+        *.Z)   uncompress "$1" ;;
+        *.rar) unrar x "$1" ;;
+        *.7z)  7z x "$1" ;;
+        *)
+            echo "Error: unsupported archive format: $1" >&2
+            return 1
+            ;;
     esac
 }
 
-# Inspect active processes bound to a given network port
 port() {
     if [[ -z "${1:-}" ]]; then
-        echo "Usage: port <port_number>" >&2
+        echo "Usage: port <number>" >&2
         return 1
     fi
 
@@ -51,18 +115,22 @@ port() {
     elif command -v netstat >/dev/null 2>&1; then
         netstat -tulpn | grep ":$1\b"
     else
-        echo "Error: 'lsof', 'ss', or 'netstat' is required to inspect listening ports." >&2
+        echo "Error: lsof, ss, or netstat is required" >&2
         return 1
     fi
 }
 
-# Resolve local and public IP addresses
+# `ip route get` field order is not stable; take the token after src.
+_local_ip_from_route() {
+    awk '{ for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }'
+}
+
 myip() {
     local local_ip="Unavailable"
     local public_ip="Unavailable"
 
     if command -v ip >/dev/null 2>&1; then
-        local_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')"
+        local_ip="$(ip route get 1.1.1.1 2>/dev/null | _local_ip_from_route)"
     elif command -v ifconfig >/dev/null 2>&1; then
         local_ip="$(ifconfig 2>/dev/null | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -n1)"
     fi
@@ -75,10 +143,9 @@ myip() {
     printf "Public IP: %s\n" "${public_ip:-Unavailable}"
 }
 
-# Interactively prune merged local Git branches against upstream default branch
 git-clean-branches() {
     if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        echo "Error: Not inside a Git work tree." >&2
+        echo "Error: not inside a Git repository" >&2
         return 1
     fi
 
@@ -90,30 +157,29 @@ git-clean-branches() {
     branches_to_delete="$(git branch --merged "$main_branch" 2>/dev/null | grep -vE "^\*|\b(main|master|develop)\b" | sed 's/^[[:space:]]*//' || true)"
 
     if [[ -z "$branches_to_delete" ]]; then
-        echo "No merged local branches to prune."
+        echo "No merged local branches to delete."
         return 0
     fi
 
-    echo "Local branches merged into '$main_branch':"
+    echo "Merged into '$main_branch':"
     echo "$branches_to_delete"
     echo ""
-    read -r "response?Prune these branches? [y/N]: "
+    read -r "response?Delete these branches? [y/N]: "
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo "$branches_to_delete" | xargs git branch -d
-        echo "Branches pruned successfully."
+        echo "Branches deleted."
     else
-        echo "Pruning aborted."
+        echo "Cancelled."
     fi
 }
 
-# Resolve a regular file path under ~/.ssh/keys/<category>/<name>.
-# Rejects path traversal (absolute names, .., extra components).
+# Rejects '..' and extra path components; result stays under ~/.ssh/keys/<category>/.
 _ssh_safe_key_path() {
     local category="$1"
     local raw_name="$2"
 
     if [[ -z "$raw_name" || "$raw_name" == "." || "$raw_name" == ".." || "$raw_name" == *[\\/]* ]]; then
-        echo "Error: Key name must be a single path component, got '$raw_name'." >&2
+        echo "Error: key name must be a single path component: $raw_name" >&2
         return 1
     fi
 
@@ -121,7 +187,7 @@ _ssh_safe_key_path() {
     name="$(basename -- "$raw_name")"
 
     if [[ -z "$name" || "$name" == "." || "$name" == ".." || "$name" == *[\\/]* ]]; then
-        echo "Error: Invalid key name '$raw_name'." >&2
+        echo "Error: invalid key name: $raw_name" >&2
         return 1
     fi
 
@@ -136,21 +202,20 @@ _ssh_safe_key_path() {
     case "$dest_dir_real" in
         "$keys_root"/*) ;;
         *)
-            echo "Error: Refusing to write outside ~/.ssh/keys (resolved '$dest_dir_real')." >&2
+            echo "Error: refusing to write outside ~/.ssh/keys: $dest_dir_real" >&2
             return 1
             ;;
     esac
 
     dest_file="$dest_dir_real/$name"
     if [[ "$(dirname -- "$dest_file")" != "$dest_dir_real" ]]; then
-        echo "Error: Invalid destination path." >&2
+        echo "Error: invalid destination path" >&2
         return 1
     fi
 
     printf '%s\n' "$dest_file"
 }
 
-# Copy SSH public key to system clipboard or stdout
 pubkey() {
     local target="${1:-personal}"
     local key_path=""
@@ -161,7 +226,7 @@ pubkey() {
         elif [[ -f "${target}.pub" ]]; then
             key_path="${target}.pub"
         else
-            echo "Error: '$target' is not a public key. Pass a .pub file." >&2
+            echo "Error: '$target' is not a public key" >&2
             return 1
         fi
     elif [[ -f "${target}.pub" ]]; then
@@ -177,29 +242,27 @@ pubkey() {
     elif [[ -f "$HOME/.ssh/id_rsa.pub" ]]; then
         key_path="$HOME/.ssh/id_rsa.pub"
     else
-        echo "Error: No public key found for '${target}'." >&2
-        echo "Generate one with: ssh-new ${target}" >&2
+        echo "Error: no public key found for '${target}'. Generate one with: ssh-new ${target}" >&2
         return 1
     fi
 
     local key_content=""
-    # First non-empty, non-comment line (OpenSSH .pub is a single line)
     key_content="$(grep -vE '^[[:space:]]*(#|$)' "$key_path" | head -n 1 | tr -d '\r\n')"
 
     if [[ -z "$key_content" ]]; then
-        echo "Error: Key file '$key_path' is empty or invalid." >&2
+        echo "Error: key file is empty or invalid: $key_path" >&2
         return 1
     fi
 
     if [[ "$key_content" == *"PRIVATE KEY"* ]]; then
-        echo "Error: Refusing to copy a private key from '$key_path'." >&2
+        echo "Error: refusing to copy a private key: $key_path" >&2
         return 1
     fi
 
     case "$key_content" in
         ssh-*|ecdsa-*|sk-*) ;;
         *)
-            echo "Error: '$key_path' does not look like an OpenSSH public key." >&2
+            echo "Error: not an OpenSSH public key: $key_path" >&2
             return 1
             ;;
     esac
@@ -207,7 +270,6 @@ pubkey() {
     local copied=0
     local method=""
 
-    # 1. Wayland clipboard
     if command -v wl-copy >/dev/null 2>&1 && [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
         if printf '%s' "$key_content" | wl-copy 2>/dev/null; then
             copied=1
@@ -215,7 +277,6 @@ pubkey() {
         fi
     fi
 
-    # 2. X11 clipboard (xclip)
     if [[ $copied -eq 0 ]] && command -v xclip >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
         if printf '%s' "$key_content" | xclip -selection clipboard 2>/dev/null; then
             copied=1
@@ -223,7 +284,6 @@ pubkey() {
         fi
     fi
 
-    # 3. X11 clipboard (xsel)
     if [[ $copied -eq 0 ]] && command -v xsel >/dev/null 2>&1 && [[ -n "${DISPLAY:-}" ]]; then
         if printf '%s' "$key_content" | xsel --clipboard --input 2>/dev/null; then
             copied=1
@@ -231,7 +291,6 @@ pubkey() {
         fi
     fi
 
-    # 4. macOS clipboard
     if [[ $copied -eq 0 ]] && command -v pbcopy >/dev/null 2>&1; then
         if printf '%s' "$key_content" | pbcopy 2>/dev/null; then
             copied=1
@@ -239,7 +298,6 @@ pubkey() {
         fi
     fi
 
-    # 5. Terminal OSC 52 sequence (works over SSH and in all modern terminals without GUI tools)
     local b64_key
     b64_key="$(printf '%s' "$key_content" | base64 | tr -d '\r\n')"
     if [[ -n "${TMUX:-}" ]]; then
@@ -249,21 +307,17 @@ pubkey() {
     fi
 
     if [[ $copied -eq 0 ]]; then
-        method="OSC 52 (terminal clipboard)"
+        method="OSC 52"
     fi
 
-    # Output formatting
     if [[ -t 1 ]]; then
-        echo "✓ Public key copied to clipboard via ${method}."
-        echo "  Source: $key_path"
-        echo ""
+        echo "Copied with ${method} from $key_path"
         echo "$key_content"
     else
         printf '%s\n' "$key_content"
     fi
 }
 
-# Generate an ed25519 SSH keypair into the structured keys directory
 ssh-new() {
     local category="${1:-}"
     local email="${2:-}"
@@ -271,10 +325,10 @@ ssh-new() {
 
     if [[ -z "$category" ]]; then
         echo "Select key category:"
-        echo "  1) personal (default)"
+        echo "  1) personal"
         echo "  2) work"
         echo "  3) servers"
-        read -r "choice?Choice [1-3] (default: 1): "
+        read -r "choice?Choice [1-3]: "
         case "$choice" in
             2) category="work" ;;
             3) category="servers" ;;
@@ -283,7 +337,7 @@ ssh-new() {
     fi
 
     if [[ "$category" != "personal" && "$category" != "work" && "$category" != "servers" ]]; then
-        echo "Error: Invalid category '$category'. Expected: personal, work, or servers." >&2
+        echo "Error: category must be personal, work, or servers" >&2
         return 1
     fi
 
@@ -302,40 +356,37 @@ ssh-new() {
     target_file="$(_ssh_safe_key_path "$category" "$key_name")" || return 1
 
     if [[ -f "$target_file" ]]; then
-        echo "Error: Key '$target_file' already exists." >&2
+        echo "Error: key already exists: $target_file" >&2
         return 1
     fi
 
-    echo "Generating ed25519 key at '$target_file'..."
+    echo "Generating key at $target_file"
     ssh-keygen -t ed25519 -C "${email:-$USER}" -f "$target_file"
 
     chmod 600 "$target_file"
     chmod 644 "${target_file}.pub"
 
-    echo ""
-    echo "Key pair successfully generated at '$target_file'."
+    echo "Created $target_file"
     pubkey "${target_file}.pub"
 }
 
-# Import and secure downloaded SSH keys (e.g. AWS/VPS .pem, .key, and companion .pub)
 ssh-import() {
     local source_file="${1:-}"
     local category="${2:-servers}"
     local new_name="${3:-}"
 
     if [[ -z "$source_file" ]]; then
-        echo "Usage: ssh-import <path_to_key_file> [category] [new_name]" >&2
-        echo "Example: ssh-import ~/Downloads/my-vps.key servers vps-prod" >&2
+        echo "Usage: ssh-import <key> [personal|work|servers] [name]" >&2
         return 1
     fi
 
     if [[ ! -f "$source_file" ]]; then
-        echo "Error: Source key file '$source_file' not found." >&2
+        echo "Error: file not found: $source_file" >&2
         return 1
     fi
 
     if [[ "$category" != "personal" && "$category" != "work" && "$category" != "servers" ]]; then
-        echo "Error: Invalid category '$category'. Expected: personal, work, or servers." >&2
+        echo "Error: category must be personal, work, or servers" >&2
         return 1
     fi
 
@@ -348,10 +399,10 @@ ssh-import() {
     new_name="$(basename -- "$dest_file")"
 
     if [[ -f "$dest_file" ]]; then
-        echo "Warning: Destination '$dest_file' already exists."
+        echo "Warning: $dest_file already exists"
         read -r "overwrite?Overwrite? [y/N]: "
         if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-            echo "Import aborted."
+            echo "Cancelled."
             return 0
         fi
     fi
@@ -376,23 +427,19 @@ ssh-import() {
         [[ "$dest_pub" == "$dest_file" ]] && dest_pub="${dest_file}.pub"
         cp "$companion_pub" "$dest_pub"
         chmod 644 "$dest_pub"
-        echo "Imported matching public key: '$dest_pub'"
+        echo "Imported public key $dest_pub"
     else
         if ssh-keygen -y -f "$dest_file" > "${dest_file}.pub" 2>/dev/null; then
             chmod 644 "${dest_file}.pub"
-            echo "Extracted public key: '${dest_file}.pub'"
+            echo "Wrote public key ${dest_file}.pub"
         fi
     fi
 
     local host_alias="${new_name%.*}"
-    echo ""
-    echo "Key successfully imported and secured at '$dest_file' (mode 0600)."
-    echo ""
-    echo "Suggested host block for ~/.ssh/config.local:"
-    echo "--------------------------------------------------------"
+    echo "Imported $dest_file"
+    echo "Suggested host block:"
     echo "Host ${host_alias}"
-    echo "    HostName <SERVER_IP_OR_DOMAIN>"
-    echo "    User <SSH_USER>"
+    echo "    HostName <host>"
+    echo "    User <user>"
     echo "    IdentityFile ~/.ssh/keys/${category}/${new_name}"
-    echo "--------------------------------------------------------"
 }
