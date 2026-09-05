@@ -1,37 +1,22 @@
-# ==============================================================================
-# Local Machine / Work Overrides Template
-# Copy this file to ~/.ssh/config.local for machine-specific or private hosts.
-# ==============================================================================
+# ~/.ssh/config.local — private hosts (untracked)
 
-# ------------------------------------------------------------------------------
-# Work / Secondary Git Accounts
-# ------------------------------------------------------------------------------
 # Host github.com-work
 #     HostName github.com
 #     User git
 #     IdentityFile ~/.ssh/keys/work/id_ed25519
 
-# ------------------------------------------------------------------------------
-# Corporate Bastion / Jump Host
-# ------------------------------------------------------------------------------
 # Host work-bastion
 #     HostName bastion.company.com
 #     User myuser
 #     IdentityFile ~/.ssh/keys/work/id_ed25519
 #     Port 2222
 
-# ------------------------------------------------------------------------------
-# Internal Server routed through Bastion (Transparent ProxyJump)
-# ------------------------------------------------------------------------------
 # Host work-db-internal
 #     HostName 10.0.1.50
 #     User admin
 #     ProxyJump work-bastion
 #     IdentityFile ~/.ssh/keys/work/id_ed25519
 
-# ------------------------------------------------------------------------------
-# Local Port Forwarding / Database Tunnel
-# ------------------------------------------------------------------------------
 # Host work-db-tunnel
 #     HostName bastion.company.com
 #     LocalForward 5432 10.0.1.50:5432

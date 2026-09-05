@@ -171,13 +171,17 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
   # Decrypts .age / .enc if needed, then enforces POSIX permissions (0700/0600/0644)
   ```
 
+Restore **only archives you created** on a machine you trust. `--plain` backups contain SSH **private keys** in plaintext; treat them like `~/.ssh` itself.
+
 ---
 
 ## Directory Layout
 
 ```text
 .
-├── Makefile                # Automation entrypoints (install, backup, restore, update, lint, test)
+├── LICENSE                 # MIT
+├── Makefile                # Automation entrypoints (install, backup, restore, update, check)
+├── SECURITY.md             # How to report issues that involve keys or backups
 ├── alacritty/              # GPU-accelerated terminal configuration
 ├── backup.sh               # Secure archive utility for untracked secrets and SSH keys
 ├── git/                    # Global Git configuration, ignores, and local template
@@ -192,7 +196,7 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
 ├── ssh/                    # SSH client configuration and templates
 │   ├── config              # Global defaults, ControlMaster multiplexing, Git routing
 │   └── config.local.example# Template for corporate hosts, bastions, and tunnels
-├── tmux/                   # Minimalist top-bar Tmux configuration (tmux.conf)
+├── tmux/                   # Minimalist top-bar Tmux configuration (tmux.conf + copy.sh)
 ├── uninstall.sh            # Safe teardown (keeps ~/.config/zsh/local.zsh and git/config.local)
 └── zsh/
     ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
@@ -213,7 +217,8 @@ make install    # Deploy symlinks, provision font, and install Mise tools
 make backup     # Create encrypted archive of local secrets and SSH keys
 make restore    # Restore secrets and SSH keys from a backup archive
 make update     # Bump pinned plugin SHAs, bootstrap checksums, and mise.lock
-make test       # Lint plus backup/restore allowlist and encryption tests
+make check      # Lint plus backup/restore and shell-helper tests (what CI runs)
+make test       # Alias for check
 make lint       # Validate syntax and run ShellCheck analysis
 make uninstall  # Revert symlinks and restore original files
 ```

@@ -1,5 +1,4 @@
-# Local Git configuration (not committed to git)
-# Lives at ~/.config/git/config.local as a real file, outside the git working tree.
+# ~/.config/git/config.local (untracked)
 
 [user]
     name = Your Name

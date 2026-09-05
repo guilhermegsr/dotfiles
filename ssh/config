@@ -1,35 +1,19 @@
-# ==============================================================================
-# Local & Modular Overrides (Include first to allow host overrides)
-# ==============================================================================
+# Include first so Host blocks here override Host * below.
 Include ~/.ssh/config.local
 Include ~/.ssh/conf.d/*
 
-# ==============================================================================
-# Global Defaults (Security & High-Performance Multiplexing)
-# ==============================================================================
 Host *
-    # Automatically add unlocked identities to ssh-agent
     AddKeysToAgent yes
-
-    # Offer only the identity explicitly specified for this host (prevents auth lockouts)
+    # Avoid offering every key (GitHub/GitLab lockouts).
     IdentitiesOnly yes
-
-    # Keepalive heartbeats to prevent idle connection termination
     ServerAliveInterval 60
     ServerAliveCountMax 3
     TCPKeepAlive yes
-
-    # Hash hostnames and addresses in ~/.ssh/known_hosts for privacy
     HashKnownHosts yes
-
-    # Connection multiplexing: socket reuse for instant subsequent connections (git/ssh/scp)
     ControlMaster auto
     ControlPath ~/.ssh/sockets/%r@%h:%p
     ControlPersist 10m
 
-# ==============================================================================
-# Git Services (Personal default)
-# ==============================================================================
 Host github.com
     HostName github.com
     User git
