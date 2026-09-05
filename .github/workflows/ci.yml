@@ -18,29 +18,14 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zsh curl git shellcheck openssl
+          sudo apt-get install -y zsh curl git shellcheck openssl openssh-client
 
-      - name: Static analysis with ShellCheck
-        run: |
-          shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh
-
-      - name: Validate Bash script syntax
-        run: |
-          bash -n install.sh uninstall.sh backup.sh restore.sh scripts/*.sh
-
-      - name: Validate Zsh script syntax
-        run: |
-          for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do
-            zsh -n "$f"
-          done
-
-      - name: Backup and restore tests
-        run: |
-          ./scripts/test-backup-restore.sh
+      - name: make check
+        run: make check
 
       - name: Test installation script
         run: |
-          ./install.sh
+          DOTFILES_SKIP_CHSH=1 ./install.sh
 
       - name: Verify generated layout
         run: |
@@ -58,13 +43,14 @@ jobs:
           test -L "$HOME/.config/mise/config.toml"
           test -L "$HOME/.config/mise/mise.lock"
           test -L "$HOME/.config/tmux"
+          test -x "$HOME/.config/tmux/copy.sh"
           test -L "$HOME/.config/alacritty"
           test -d "$HOME/.ssh/conf.d"
           test -d "$HOME/.ssh/keys/personal"
 
       - name: Test uninstallation script
         run: |
-          ./uninstall.sh
+          DOTFILES_SKIP_CHSH=1 ./uninstall.sh
 
       - name: Verify symlink teardown
         run: |

@@ -18,27 +18,29 @@ restore: ## Restore allowlisted secrets and SSH keys from a backup archive
 	@./restore.sh
 
 lint: ## Run static analysis and syntax validation across Bash and Zsh files
-	@echo "==> Running ShellCheck analysis..."
+	@echo "==> Running ShellCheck"
 	@if command -v shellcheck >/dev/null 2>&1; then \
-		shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh; \
+		shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh tmux/copy.sh; \
 	elif command -v mise >/dev/null 2>&1 && mise which shellcheck >/dev/null 2>&1; then \
-		mise exec -- shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh; \
+		mise exec -- shellcheck -x install.sh uninstall.sh backup.sh restore.sh scripts/*.sh tmux/copy.sh; \
 	else \
-		echo "Notice: ShellCheck not found; skipping static analysis."; \
+		echo "ShellCheck was not found; skipping static analysis."; \
 	fi
-	@echo "==> Validating Bash script syntax..."
-	@bash -n install.sh uninstall.sh backup.sh restore.sh scripts/*.sh
-	@echo "==> Validating Zsh script syntax..."
+	@echo "==> Checking Bash syntax"
+	@bash -n install.sh uninstall.sh backup.sh restore.sh scripts/*.sh tmux/copy.sh
+	@echo "==> Checking Zsh syntax"
 	@for f in zsh/.zshenv zsh/.zshrc zsh/local.zsh.example zsh/config/*.zsh zsh/integrations/*.zsh; do \
 		zsh -n "$$f" || exit 1; \
 	done
-	@echo "==> All scripts passed validation."
+	@echo "==> Lint passed."
 
-check: lint ## Alias for lint
-
-test: lint ## Run lint plus backup/restore allowlist and encryption tests
-	@echo "==> Running backup/restore tests..."
+check: lint ## Lint plus backup/restore and shell-helper tests (CI runs this)
+	@echo "==> Running backup and restore tests"
 	@./scripts/test-backup-restore.sh
+	@echo "==> Running shell helper tests"
+	@./scripts/test-shell-helpers.sh
 
-update: ## Bump pinned plugin SHAs, bootstrap checksums, and Mise lockfile
+test: check ## Alias for check
+
+update: ## Bump pinned plugin SHAs, bootstrap checksums, tool versions, and Mise lockfile
 	@./scripts/update-locks.sh

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Offline tests for backup.sh / restore.sh allowlist and encryption round-trip.
 
 set -euo pipefail
 
@@ -82,7 +81,7 @@ if command -v openssl >/dev/null 2>&1; then
     [[ -f "$HOME/.ssh/keys/personal/id_ed25519" ]] || fail "encrypted restore did not write key"
     pass "openssl encrypt/decrypt round-trip"
 else
-    echo "Notice: openssl not found; skipped encryption round-trip"
+    echo "notice: openssl was not found; skipped the encryption round-trip"
 fi
 
 echo
