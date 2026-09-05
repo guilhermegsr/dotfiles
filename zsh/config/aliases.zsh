@@ -12,19 +12,7 @@ if command -v bat >/dev/null 2>&1; then
     alias batp='bat'
 fi
 
-if command -v rg >/dev/null 2>&1; then
-    alias grep='rg'
-else
-    alias grep='grep --color=auto'
-fi
-
-if command -v fd >/dev/null 2>&1; then
-    alias find='fd'
-fi
-
-if command -v zoxide >/dev/null 2>&1; then
-    alias cd='z'
-fi
+alias grep='grep --color=auto'
 
 alias ..='cd ..'
 alias ...='cd ../..'

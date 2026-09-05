@@ -127,8 +127,9 @@ All keys are strictly structured under `~/.ssh/keys/` and auto-routed via `~/.ss
   ```bash
   ls / la / tree         # eza with icons and permissions
   cat / batp             # bat with syntax highlighting and line numbers
-  grep                   # ripgrep
-  find                   # fd
+  rg                     # ripgrep (grep stays as system grep)
+  fd                     # fd (find stays as system find)
+  z                      # zoxide jumper (cd stays as the builtin)
   ```
 
 ---
