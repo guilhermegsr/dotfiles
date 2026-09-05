@@ -28,7 +28,7 @@ During installation, the installer will interactively prompt for:
 | **VCS** | [Git](https://git-scm.com/) | XDG config, `zdiff3` conflict style, `histogram` diff, `rerere`, `fetch.prune`, automatic remote setup |
 | **Multiplexer** | [Tmux](https://github.com/tmux/tmux) | Omarchy-inspired top status bar (`●`), `Ctrl+b` prefix, arrow navigation, automatic window naming, `Alt+1..9` tabs |
 | **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (11px), `Beam` cursor shape |
-| **Toolchains** | [Mise](https://mise.jdx.dev/) | Declarative runtime management (`Node.js`, `Python`, `Rust`, `Bun`, `uv`, `tmux`, `shellcheck`) |
+| **Toolchains** | [Mise](https://mise.jdx.dev/) | Declarative runtimes with `mise.lock` checksums (`Node.js`, `Python`, `Rust`, `Bun`, `uv`, `tmux`, `shellcheck`) |
 | **Modern CLI** | Core Utilities | `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `fzf` (fuzzy search) |
 
 ---
@@ -177,21 +177,23 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
 
 ```text
 .
-├── Makefile                # Automation entrypoints (install, backup, restore, update, lint)
+├── Makefile                # Automation entrypoints (install, backup, restore, update, lint, test)
 ├── alacritty/              # GPU-accelerated terminal configuration
 ├── backup.sh               # Secure archive utility for untracked secrets and SSH keys
 ├── git/                    # Global Git configuration, ignores, and local template
 │   ├── config              # Global settings (histogram diff, zdiff3, rerere)
 │   ├── config.local.example# Template for personal name/email
 │   └── ignore              # Global ignores (OS, IDEs, caches, local secrets)
-├── install.sh              # Idempotent deployment script with automated font & SSH setup
-├── mise/                   # Global CLI tools and runtime declarations (config.toml)
-├── restore.sh              # Safe restoration utility with automatic permission hardening
+├── install.sh              # Idempotent deployment with pinned plugins, fonts, and Mise
+├── locks/                  # Pinned plugin SHAs and bootstrap artifact checksums
+├── mise/                   # Global CLI tools (config.toml) and checksum lockfile (mise.lock)
+├── restore.sh              # Allowlisted restoration with permission hardening
+├── scripts/                # Lock bump + backup/restore tests
 ├── ssh/                    # SSH client configuration and templates
 │   ├── config              # Global defaults, ControlMaster multiplexing, Git routing
 │   └── config.local.example# Template for corporate hosts, bastions, and tunnels
 ├── tmux/                   # Minimalist top-bar Tmux configuration (tmux.conf)
-├── uninstall.sh            # Safe teardown and backup restoration script
+├── uninstall.sh            # Safe teardown (keeps ~/.config/zsh/local.zsh and git/config.local)
 └── zsh/
     ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
     ├── .zshrc              # Modular initialization loader
@@ -199,6 +201,8 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
     ├── config/             # Aliases, completions, exports, functions, history, prompt
     └── integrations/       # Fzf, Mise, plugins (autosuggestions/syntax-highlighting), Zoxide
 ```
+
+Machine-specific secrets are **not** stored in this repository. After install, `~/.config/zsh/local.zsh` and `~/.config/git/config.local` are regular files in those directories (the repo only provides templates).
 
 ---
 
@@ -208,7 +212,12 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
 make install    # Deploy symlinks, provision font, and install Mise tools
 make backup     # Create encrypted archive of local secrets and SSH keys
 make restore    # Restore secrets and SSH keys from a backup archive
-make update     # Upgrade Mise tools and pull latest Zsh plugins
+make update     # Bump pinned plugin SHAs, bootstrap checksums, and mise.lock
+make test       # Lint plus backup/restore allowlist and encryption tests
 make lint       # Validate syntax and run ShellCheck analysis
 make uninstall  # Revert symlinks and restore original files
 ```
+
+Install is reproducible: plugin SHAs, font/Mise checksums, and `mise.lock` are committed. `make update` rewrites those pins to current upstream versions — review the diff and commit it.
+
+`~/.config/zsh/local.zsh` and `~/.config/git/config.local` stay as regular files (not repo symlinks), same idea as `~/.ssh/config.local`.
