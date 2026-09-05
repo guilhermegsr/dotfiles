@@ -11,10 +11,10 @@ install: ## Execute idempotent dotfiles installation with interactive onboarding
 uninstall: ## Revert symlinks, remove dotfiles-managed assets, and restore backups
 	@./uninstall.sh
 
-backup: ## Archive local secrets, private configs, and SSH keys (optional AES-256 encryption)
+backup: ## Archive local secrets and SSH keys (encrypted by default; ./backup.sh --plain to skip)
 	@./backup.sh
 
-restore: ## Restore local secrets, private configs, and SSH keys from a backup archive
+restore: ## Restore allowlisted secrets and SSH keys from a backup archive
 	@./restore.sh
 
 lint: ## Run static analysis and syntax validation across Bash and Zsh files

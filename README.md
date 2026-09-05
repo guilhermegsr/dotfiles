@@ -158,13 +158,17 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
   ```bash
   make backup
   # Archives ~/.ssh/keys, ~/.ssh/config.local, ~/.config/git/config.local, and ~/.config/zsh/local.zsh
-  # Prompts for optional AES-256-CBC password encryption via OpenSSL
+  # Encryption is on by default (age if available, otherwise OpenSSL AES-256-CBC + PBKDF2 600000)
+  # Unencrypted archives are opt-in and contain private keys:
+  ./backup.sh --plain ~/dotfiles-backup.tar.gz
   ```
 
 * **Restore a backup**:
   ```bash
   make restore
-  # Prompts for backup file path, decrypts if necessary, and enforces strict POSIX permissions (0700/0600/0644)
+  # Lists archive members, restores only allowlisted paths, and asks for confirmation
+  # Rejects '..', absolute paths, symlinks, and unexpected prefixes
+  # Decrypts .age / .enc if needed, then enforces POSIX permissions (0700/0600/0644)
   ```
 
 ---
@@ -202,7 +206,7 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
 
 ```bash
 make install    # Deploy symlinks, provision font, and install Mise tools
-make backup     # Create secure/encrypted archive of local secrets and SSH keys
+make backup     # Create encrypted archive of local secrets and SSH keys
 make restore    # Restore secrets and SSH keys from a backup archive
 make update     # Upgrade Mise tools and pull latest Zsh plugins
 make lint       # Validate syntax and run ShellCheck analysis
