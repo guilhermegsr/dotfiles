@@ -2,13 +2,9 @@
 
 set -euo pipefail
 
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib.sh
+source "$DOTFILES_DIR/scripts/lib.sh"
 
 # Keep in sync with restore.sh ALLOWED_PREFIXES
 CANDIDATES=(
@@ -19,42 +15,19 @@ CANDIDATES=(
     ".config/zsh/local.zsh"
 )
 
-# OpenSSL enc does not store the iteration count; restore.sh tries this
-# value first, then the historical default (10000) for older archives.
+# openssl enc does not store iter; restore tries 600000 then 10000.
 OPENSSL_ITER=600000
-
-section() {
-    printf "\n%b==>%b %b%s%b\n" "$CYAN" "$NC" "$BOLD" "$1" "$NC"
-}
-
-info() {
-    printf "  %b[INFO]%b %s\n" "$BLUE" "$NC" "$1"
-}
-
-success() {
-    printf "  %b[OK]%b   %s\n" "$GREEN" "$NC" "$1"
-}
-
-warn() {
-    printf "  %b[WARN]%b %s\n" "$YELLOW" "$NC" "$1"
-}
-
-error() {
-    printf "  %b[ERROR]%b %s\n" "$RED" "$NC" "$1" >&2
-}
 
 usage() {
     cat <<'EOF'
 Usage: backup.sh [--plain] [output_path]
 
-  --plain    Write an unencrypted tar.gz (NOT recommended; contains SSH keys)
+  --plain    Skip encryption. The archive will contain SSH private keys.
   -h, --help Show this help
 
-Encryption is on by default. Prefers age (authenticated); falls back to
-OpenSSL AES-256-CBC with PBKDF2 (600000 iterations).
-
-Set DOTFILES_OPENSSL_PASS_FILE to a 0600 file containing the passphrase
-to encrypt non-interactively with OpenSSL (used by tests/automation).
+Encryption is on by default. age is preferred; OpenSSL AES-256-CBC with
+PBKDF2 is used when age is not installed. Set DOTFILES_OPENSSL_PASS_FILE
+to a passphrase file for non-interactive OpenSSL encryption.
 EOF
 }
 
@@ -76,13 +49,13 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         -*)
-            error "Unknown option '$1'"
+            error "Unknown option: $1"
             usage
             exit 1
             ;;
         *)
             if [[ -n "$OUTPUT_FILE" ]]; then
-                error "Unexpected extra argument '$1'"
+                error "Unexpected extra argument: $1"
                 usage
                 exit 1
             fi
@@ -92,12 +65,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-printf "\n%b=== Dotfiles Secrets & SSH Backup ===%b\n" "${BOLD}${BLUE}" "$NC"
+printf "\n%b=== Backup ===%b\n" "${BOLD}${BLUE}" "$NC"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 DEFAULT_OUT_DIR="$HOME"
 
-section "Scanning for local secrets and untracked configurations..."
+section "Scan"
 
 TARGETS=()
 for item in "${CANDIDATES[@]}"; do
@@ -107,16 +80,16 @@ for item in "${CANDIDATES[@]}"; do
 done
 
 if [[ ${#TARGETS[@]} -eq 0 ]]; then
-    warn "No local secrets or SSH keys found to backup."
+    warn "No secrets or SSH keys found to back up."
     exit 0
 fi
 
-info "Detected local assets to archive:"
+info "Archiving:"
 for target in "${TARGETS[@]}"; do
     printf "    %b•%b %s\n" "$CYAN" "$NC" "$HOME/$target"
 done
 
-section "Configuring destination and encryption..."
+section "Output"
 
 OPENSSL_PASS_FILE="${DOTFILES_OPENSSL_PASS_FILE:-}"
 
@@ -131,8 +104,7 @@ elif [[ -t 0 ]]; then
         ENCRYPT=false
     fi
 else
-    error "Encryption is on by default and requires a TTY for the passphrase."
-    error "Re-run interactively, pass --plain, or set DOTFILES_OPENSSL_PASS_FILE."
+    error "Encryption requires a terminal, --plain, or DOTFILES_OPENSSL_PASS_FILE."
     exit 1
 fi
 
@@ -142,31 +114,31 @@ DEFAULT_ARCHIVE_NAME="dotfiles-backup-${TIMESTAMP}.tar.gz"
 if [[ "$ENCRYPT" == true ]]; then
     if [[ -n "$OPENSSL_PASS_FILE" ]]; then
         if [[ ! -f "$OPENSSL_PASS_FILE" ]]; then
-            error "DOTFILES_OPENSSL_PASS_FILE '$OPENSSL_PASS_FILE' does not exist."
+            error "Passphrase file not found: $OPENSSL_PASS_FILE"
             exit 1
         fi
         if ! command -v openssl >/dev/null 2>&1; then
-            error "'openssl' binary not found; unable to encrypt archive."
+            error "openssl was not found."
             exit 1
         fi
         ENCRYPT_TOOL="openssl"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.enc"
-        info "Using OpenSSL AES-256-CBC (PBKDF2, ${OPENSSL_ITER} iterations) via pass file"
+        info "Encrypting with OpenSSL AES-256-CBC, PBKDF2 ${OPENSSL_ITER} iterations"
     elif command -v age >/dev/null 2>&1; then
         ENCRYPT_TOOL="age"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.age"
-        info "Using age (authenticated encryption)"
+        info "Encrypting with age"
     elif command -v openssl >/dev/null 2>&1; then
         ENCRYPT_TOOL="openssl"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.enc"
-        info "Using OpenSSL AES-256-CBC (PBKDF2, ${OPENSSL_ITER} iterations)"
-        warn "age is preferred (AEAD). Install age to get authenticated encryption."
+        info "Encrypting with OpenSSL AES-256-CBC, PBKDF2 ${OPENSSL_ITER} iterations"
+        warn "Install age if you want authenticated encryption."
     else
-        error "Encryption requires 'age' or 'openssl'. Install one of them, or pass --plain."
+        error "age or openssl is required to encrypt. Install one of them, or pass --plain."
         exit 1
     fi
 else
-    warn "Writing an UNENCRYPTED archive that contains SSH private keys."
+    warn "Writing an unencrypted archive. It will contain SSH private keys."
 fi
 
 if [[ -z "$OUTPUT_FILE" ]]; then
@@ -195,7 +167,7 @@ trap 'rm -f "$TEMP_TAR"' EXIT
 tar -czf "$TEMP_TAR" -C "$HOME" "${TARGETS[@]}"
 
 if [[ "$ENCRYPT" == true ]]; then
-    info "Encrypting archive..."
+    info "Encrypting archive"
     case "$ENCRYPT_TOOL" in
         age)
             if ! age -p -o "$OUTPUT_FILE" "$TEMP_TAR"; then
@@ -216,16 +188,16 @@ if [[ "$ENCRYPT" == true ]]; then
             fi
             ;;
         *)
-            error "Internal error: unknown encryption tool '$ENCRYPT_TOOL'."
+            error "Unknown encryption tool: $ENCRYPT_TOOL"
             exit 1
             ;;
     esac
     chmod 600 "$OUTPUT_FILE"
-    success "Encrypted backup saved to '$OUTPUT_FILE' (mode 0600)"
+    success "Saved to $OUTPUT_FILE"
 else
     mv "$TEMP_TAR" "$OUTPUT_FILE"
     chmod 600 "$OUTPUT_FILE"
-    success "Backup saved to '$OUTPUT_FILE' (mode 0600)"
+    success "Saved to $OUTPUT_FILE"
 fi
 
-printf "\n%bBackup completed successfully.%b\n\n" "${BOLD}${GREEN}" "$NC"
+printf "\n%bBackup complete.%b\n\n" "${BOLD}${GREEN}" "$NC"
