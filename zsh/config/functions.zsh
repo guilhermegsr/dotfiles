@@ -106,13 +106,64 @@ git-clean-branches() {
     fi
 }
 
+# Resolve a regular file path under ~/.ssh/keys/<category>/<name>.
+# Rejects path traversal (absolute names, .., extra components).
+_ssh_safe_key_path() {
+    local category="$1"
+    local raw_name="$2"
+
+    if [[ -z "$raw_name" || "$raw_name" == "." || "$raw_name" == ".." || "$raw_name" == *[\\/]* ]]; then
+        echo "Error: Key name must be a single path component, got '$raw_name'." >&2
+        return 1
+    fi
+
+    local name
+    name="$(basename -- "$raw_name")"
+
+    if [[ -z "$name" || "$name" == "." || "$name" == ".." || "$name" == *[\\/]* ]]; then
+        echo "Error: Invalid key name '$raw_name'." >&2
+        return 1
+    fi
+
+    local dest_dir="$HOME/.ssh/keys/$category"
+    mkdir -p "$dest_dir" || return 1
+    chmod 700 "$HOME/.ssh" "$HOME/.ssh/keys" "$dest_dir"
+
+    local keys_root dest_dir_real dest_file
+    keys_root="$(cd "$HOME/.ssh/keys" && pwd -P)" || return 1
+    dest_dir_real="$(cd "$dest_dir" && pwd -P)" || return 1
+
+    case "$dest_dir_real" in
+        "$keys_root"/*) ;;
+        *)
+            echo "Error: Refusing to write outside ~/.ssh/keys (resolved '$dest_dir_real')." >&2
+            return 1
+            ;;
+    esac
+
+    dest_file="$dest_dir_real/$name"
+    if [[ "$(dirname -- "$dest_file")" != "$dest_dir_real" ]]; then
+        echo "Error: Invalid destination path." >&2
+        return 1
+    fi
+
+    printf '%s\n' "$dest_file"
+}
+
 # Copy SSH public key to system clipboard or stdout
 pubkey() {
     local target="${1:-personal}"
     local key_path=""
 
     if [[ -f "$target" ]]; then
-        key_path="$target"
+        if [[ "$target" == *.pub ]]; then
+            key_path="$target"
+        elif [[ -f "${target}.pub" ]]; then
+            key_path="${target}.pub"
+        else
+            echo "Error: '$target' is not a public key. Pass a .pub file." >&2
+            return 1
+        fi
     elif [[ -f "${target}.pub" ]]; then
         key_path="${target}.pub"
     elif [[ -f "$HOME/.ssh/keys/${target}/id_ed25519.pub" ]]; then
@@ -132,13 +183,26 @@ pubkey() {
     fi
 
     local key_content=""
-    # Extract the public key as a single sanitized line
-    key_content="$(grep -v '^[[:space:]]*$' "$key_path" | head -n 1 | tr -d '\r\n')"
+    # First non-empty, non-comment line (OpenSSH .pub is a single line)
+    key_content="$(grep -vE '^[[:space:]]*(#|$)' "$key_path" | head -n 1 | tr -d '\r\n')"
 
     if [[ -z "$key_content" ]]; then
         echo "Error: Key file '$key_path' is empty or invalid." >&2
         return 1
     fi
+
+    if [[ "$key_content" == *"PRIVATE KEY"* ]]; then
+        echo "Error: Refusing to copy a private key from '$key_path'." >&2
+        return 1
+    fi
+
+    case "$key_content" in
+        ssh-*|ecdsa-*|sk-*) ;;
+        *)
+            echo "Error: '$key_path' does not look like an OpenSSH public key." >&2
+            return 1
+            ;;
+    esac
 
     local copied=0
     local method=""
@@ -234,11 +298,8 @@ ssh-new() {
         fi
     fi
 
-    local target_dir="$HOME/.ssh/keys/$category"
-    local target_file="$target_dir/$key_name"
-
-    mkdir -p "$target_dir"
-    chmod 700 "$target_dir"
+    local target_file
+    target_file="$(_ssh_safe_key_path "$category" "$key_name")" || return 1
 
     if [[ -f "$target_file" ]]; then
         echo "Error: Key '$target_file' already exists." >&2
@@ -253,7 +314,7 @@ ssh-new() {
 
     echo ""
     echo "Key pair successfully generated at '$target_file'."
-    pubkey "$target_file"
+    pubkey "${target_file}.pub"
 }
 
 # Import and secure downloaded SSH keys (e.g. AWS/VPS .pem, .key, and companion .pub)
@@ -279,14 +340,12 @@ ssh-import() {
     fi
 
     local base_name
-    base_name="$(basename "$source_file")"
+    base_name="$(basename -- "$source_file")"
     [[ -z "$new_name" ]] && new_name="$base_name"
 
-    local dest_dir="$HOME/.ssh/keys/$category"
-    local dest_file="$dest_dir/$new_name"
-
-    mkdir -p "$dest_dir"
-    chmod 700 "$dest_dir"
+    local dest_file
+    dest_file="$(_ssh_safe_key_path "$category" "$new_name")" || return 1
+    new_name="$(basename -- "$dest_file")"
 
     if [[ -f "$dest_file" ]]; then
         echo "Warning: Destination '$dest_file' already exists."
@@ -302,7 +361,7 @@ ssh-import() {
 
     local companion_pub=""
     local source_dir
-    source_dir="$(dirname "$source_file")"
+    source_dir="$(dirname -- "$source_file")"
     local source_no_ext="${base_name%.*}"
 
     if [[ -f "${source_file}.pub" ]]; then
@@ -312,7 +371,8 @@ ssh-import() {
     fi
 
     if [[ -n "$companion_pub" ]]; then
-        local dest_pub="${dest_dir}/${new_name%.*}.pub"
+        local dest_pub
+        dest_pub="$(_ssh_safe_key_path "$category" "${new_name%.*}.pub")" || return 1
         [[ "$dest_pub" == "$dest_file" ]] && dest_pub="${dest_file}.pub"
         cp "$companion_pub" "$dest_pub"
         chmod 644 "$dest_pub"
