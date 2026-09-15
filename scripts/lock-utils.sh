@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 
+sha256_file() {
+    local file="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    else
+        echo "error: sha256sum or shasum is required" >&2
+        return 1
+    fi
+}
+
 verify_sha256() {
     local file="$1"
     local expected="$2"
     local actual=""
 
-    if command -v sha256sum >/dev/null 2>&1; then
-        actual="$(sha256sum "$file" | awk '{print $1}')"
-    elif command -v shasum >/dev/null 2>&1; then
-        actual="$(shasum -a 256 "$file" | awk '{print $1}')"
-    else
-        echo "error: sha256sum or shasum is required" >&2
-        return 1
-    fi
+    actual="$(sha256_file "$file")"
 
     if [[ "$actual" != "$expected" ]]; then
         echo "error: SHA-256 mismatch for '$file'" >&2

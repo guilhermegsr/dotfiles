@@ -173,6 +173,22 @@ git-clean-branches() {
     fi
 }
 
+ssh-clean() {
+    local socket_dir="$HOME/.ssh/sockets"
+
+    if [[ -L "$socket_dir" ]]; then
+        echo "Error: refusing to clean a symlinked SSH socket directory: $socket_dir" >&2
+        return 1
+    fi
+    if [[ ! -d "$socket_dir" ]]; then
+        echo "No SSH socket directory found."
+        return 0
+    fi
+
+    find "$socket_dir" -maxdepth 1 -type s -delete
+    echo "Removed stale SSH control sockets."
+}
+
 # Rejects '..' and extra path components; result stays under ~/.ssh/keys/<category>/.
 _ssh_safe_key_path() {
     local category="$1"
@@ -237,9 +253,9 @@ pubkey() {
         key_path="$HOME/.ssh/keys/${target}/id_rsa.pub"
     elif [[ -f "$HOME/.ssh/keys/servers/${target}.pub" ]]; then
         key_path="$HOME/.ssh/keys/servers/${target}.pub"
-    elif [[ -f "$HOME/.ssh/id_ed25519.pub" ]]; then
+    elif [[ "$target" == "personal" && -f "$HOME/.ssh/id_ed25519.pub" ]]; then
         key_path="$HOME/.ssh/id_ed25519.pub"
-    elif [[ -f "$HOME/.ssh/id_rsa.pub" ]]; then
+    elif [[ "$target" == "personal" && -f "$HOME/.ssh/id_rsa.pub" ]]; then
         key_path="$HOME/.ssh/id_rsa.pub"
     else
         echo "Error: no public key found for '${target}'. Generate one with: ssh-new ${target}" >&2
@@ -394,17 +410,47 @@ ssh-import() {
     base_name="$(basename -- "$source_file")"
     [[ -z "$new_name" ]] && new_name="$base_name"
 
+    local first_content_line
+    first_content_line="$(grep -vE '^[[:space:]]*(#|$)' "$source_file" | head -n 1 | tr -d '\r\n')"
+    case "$first_content_line" in
+        ssh-*|ecdsa-*|sk-*)
+            if ! ssh-keygen -lf "$source_file" >/dev/null 2>&1; then
+                echo "Error: invalid OpenSSH public key: $source_file" >&2
+                return 1
+            fi
+            [[ "$new_name" == *.pub ]] || new_name="${new_name}.pub"
+            local public_dest
+            public_dest="$(_ssh_safe_key_path "$category" "$new_name")" || return 1
+
+            if [[ -e "$public_dest" || -L "$public_dest" ]]; then
+                echo "Warning: $public_dest already exists"
+                read -r "overwrite?Overwrite? [y/N]: "
+                if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+                    echo "Cancelled."
+                    return 0
+                fi
+                rm -f "$public_dest"
+            fi
+
+            cp "$source_file" "$public_dest"
+            chmod 644 "$public_dest"
+            echo "Imported public key $public_dest"
+            return 0
+            ;;
+    esac
+
     local dest_file
     dest_file="$(_ssh_safe_key_path "$category" "$new_name")" || return 1
     new_name="$(basename -- "$dest_file")"
 
-    if [[ -f "$dest_file" ]]; then
+    if [[ -e "$dest_file" || -L "$dest_file" ]]; then
         echo "Warning: $dest_file already exists"
         read -r "overwrite?Overwrite? [y/N]: "
         if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
             echo "Cancelled."
             return 0
         fi
+        rm -f "$dest_file"
     fi
 
     cp "$source_file" "$dest_file"

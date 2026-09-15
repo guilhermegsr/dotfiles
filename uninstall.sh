@@ -5,12 +5,47 @@ set -euo pipefail
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib.sh
 source "$DOTFILES_DIR/scripts/lib.sh"
+# shellcheck source=scripts/lock-utils.sh
+source "$DOTFILES_DIR/scripts/lock-utils.sh"
+# shellcheck source=scripts/uninstall/purge.sh
+source "$DOTFILES_DIR/scripts/uninstall/purge.sh"
+
+PURGE=false
+
+usage() {
+    cat <<'EOF'
+Usage: ./uninstall.sh [--purge]
+
+Options:
+  --purge     Also remove plugins and the Mise binary recorded as dotfiles-owned
+  -h, --help  Show this help message
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --purge)
+            PURGE=true
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        *)
+            error "Unknown option: $1"
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 printf "\n%b=== Uninstall ===%b\n" "${BOLD}${YELLOW}" "$NC"
 printf "%bTarget: %s%b\n" "$DIM" "$DOTFILES_DIR" "$NC"
 
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
+STATE_DIR="$(dotfiles_state_dir)"
 
 section "Symlinks"
 unlink_file "$DOTFILES_DIR/zsh/.zshrc" "$CONFIG_DIR/zsh/.zshrc"
@@ -38,8 +73,13 @@ restore_latest_backup "$CONFIG_DIR/git"
 
 unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 restore_latest_backup "$CONFIG_DIR/mise/config.toml"
+
+# Cleanup for installs created before Mise lockfiles were disabled.
 unlink_file "$DOTFILES_DIR/mise/mise.lock" "$CONFIG_DIR/mise/mise.lock"
 restore_latest_backup "$CONFIG_DIR/mise/mise.lock"
+
+unlink_file "$DOTFILES_DIR/starship/starship.toml" "$CONFIG_DIR/starship.toml"
+restore_latest_backup "$CONFIG_DIR/starship.toml"
 
 unlink_file "$DOTFILES_DIR/tmux" "$CONFIG_DIR/tmux"
 restore_latest_backup "$CONFIG_DIR/tmux"
@@ -57,18 +97,35 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 else
     FONT_DIR="$DATA_DIR/fonts"
 fi
+FONT_MANIFEST="$STATE_DIR/installed-fonts"
 
-if [[ -d "$FONT_DIR" ]]; then
-    if find "$FONT_DIR" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" 2>/dev/null | grep -q .; then
-        info "Removing JetBrainsMono Nerd Font from $FONT_DIR"
-        find "$FONT_DIR" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" -delete 2>/dev/null || true
+if [[ -f "$FONT_MANIFEST" ]]; then
+    removed_font_count=0
+    while IFS= read -r font_name || [[ -n "$font_name" ]]; do
+        [[ -z "$font_name" ]] && continue
+        if [[ "$font_name" == */* || "$font_name" == "." || "$font_name" == ".." ]]; then
+            warn "Skipping invalid font manifest entry: $font_name"
+            continue
+        fi
+        font_path="$FONT_DIR/$font_name"
+        if [[ -e "$font_path" || -L "$font_path" ]]; then
+            rm -f "$font_path"
+            removed_font_count=$((removed_font_count + 1))
+        fi
+    done <"$FONT_MANIFEST"
+    rm -f "$FONT_MANIFEST"
+
+    if [[ $removed_font_count -gt 0 ]]; then
+        info "Removed $removed_font_count dotfiles-managed font files from $FONT_DIR"
         if command -v fc-cache >/dev/null 2>&1; then
             fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
         fi
-        success "Removed JetBrainsMono Nerd Font"
+        success "Removed dotfiles-managed JetBrainsMono Nerd Font files"
     else
-        info "No JetBrainsMono Nerd Font files in $FONT_DIR"
+        info "No dotfiles-managed font files were present"
     fi
+else
+    info "No managed font manifest; leaving existing fonts untouched"
 fi
 
 section "Login shell"
@@ -93,6 +150,10 @@ if [[ -f "$PREVIOUS_SHELL_FILE" ]]; then
     fi
 else
     info "No saved previous shell. Leaving the login shell unchanged."
+fi
+
+if [[ "$PURGE" == true ]]; then
+    purge_managed_assets
 fi
 
 printf "\n%bUninstall complete.%b\n\n" "${BOLD}${GREEN}" "$NC"

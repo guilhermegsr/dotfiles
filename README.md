@@ -1,6 +1,6 @@
-# dotfiles
+# Personal dotfiles
 
-> Fast, modular, and strictly XDG-compliant environment built with **Zsh**, **Mise**, **Tmux**, **OpenSSH**, and **Alacritty**.
+> Personal configuration used to rebuild my environment after formatting or replacing a machine. Built with **Zsh**, **Starship**, **Mise**, **Tmux**, **OpenSSH**, and **Alacritty**.
 
 ---
 
@@ -11,6 +11,8 @@ git clone https://github.com/guilhermegsr/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 make install
 ```
+
+To deploy only the configuration while offline, use `make install-offline`. The equivalent direct command is `./install.sh --offline`; add `--no-chsh` if the installer must also leave the login shell unchanged.
 
 During installation, the installer will interactively prompt for:
 1. **Existing Backup Restoration**: Optionally restore an existing backup archive (`.tar.gz` or encrypted `.tar.gz.enc`).
@@ -23,12 +25,12 @@ During installation, the installer will interactively prompt for:
 
 | Component | Tool | Highlights |
 | :--- | :--- | :--- |
-| **Shell** | [Zsh](https://www.zsh.org/) | Modular layout, bytecode compilation (`.zwc`), daily completion caching, custom Git prompt with latency timer |
+| **Shell** | [Zsh](https://www.zsh.org/) + [Starship](https://starship.rs/) | Modular layout, bytecode compilation (`.zwc`), daily completion caching, Git-aware prompt with command timer |
 | **SSH** | [OpenSSH](https://www.openssh.com/) | Structured `~/.ssh/keys/{personal,work,servers}`, connection multiplexing (`ControlMaster`), automated permissions |
 | **VCS** | [Git](https://git-scm.com/) | XDG config, `zdiff3` conflict style, `histogram` diff, `rerere`, `fetch.prune`, automatic remote setup |
 | **Multiplexer** | [Tmux](https://github.com/tmux/tmux) | Omarchy-inspired top status bar (`●`), `Ctrl+b` prefix, arrow navigation, automatic window naming, `Alt+1..9` tabs |
 | **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (11px), `Beam` cursor shape |
-| **Toolchains** | [Mise](https://mise.jdx.dev/) | Declarative runtimes with `mise.lock` checksums (`Node.js`, `Python`, `Rust`, `Bun`, `uv`, `tmux`, `shellcheck`) |
+| **Toolchains** | [Mise](https://mise.jdx.dev/) | Rolling latest stable tools, with Java constrained to major version 25 |
 | **Modern CLI** | Core Utilities | `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `fzf` (fuzzy search) |
 
 ---
@@ -161,13 +163,15 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
   # Encryption is on by default (age if available, otherwise OpenSSL AES-256-CBC + PBKDF2 600000)
   # Unencrypted archives are opt-in and contain private keys:
   ./backup.sh --plain ~/dotfiles-backup.tar.gz
+  # Existing destinations are protected; replacement must be explicit:
+  ./backup.sh --plain --force ~/dotfiles-backup.tar.gz
   ```
 
 * **Restore a backup**:
   ```bash
   make restore
   # Lists archive members, restores only allowlisted paths, and asks for confirmation
-  # Rejects '..', absolute paths, symlinks, and unexpected prefixes
+  # Rejects '..', absolute paths, symlinks, special files, and unexpected prefixes
   # Decrypts .age / .enc if needed, then enforces POSIX permissions (0700/0600/0644)
   ```
 
@@ -179,9 +183,7 @@ Restore **only archives you created** on a machine you trust. `--plain` backups 
 
 ```text
 .
-├── LICENSE                 # MIT
 ├── Makefile                # Automation entrypoints (install, backup, restore, update, check)
-├── SECURITY.md             # How to report issues that involve keys or backups
 ├── alacritty/              # GPU-accelerated terminal configuration
 ├── backup.sh               # Secure archive utility for untracked secrets and SSH keys
 ├── git/                    # Global Git configuration, ignores, and local template
@@ -190,20 +192,23 @@ Restore **only archives you created** on a machine you trust. `--plain` backups 
 │   └── ignore              # Global ignores (OS, IDEs, caches, local secrets)
 ├── install.sh              # Idempotent deployment with pinned plugins, fonts, and Mise
 ├── locks/                  # Pinned plugin SHAs and bootstrap artifact checksums
-├── mise/                   # Global CLI tools (config.toml) and checksum lockfile (mise.lock)
+├── mise/                   # Global CLI tools; rolling selectors live in config.toml
 ├── restore.sh              # Allowlisted restoration with permission hardening
-├── scripts/                # Lock bump + backup/restore tests
+├── scripts/                # Doctor, maintenance helpers and regression tests
+│   ├── install/            # Config, plugin, font, Mise, shell and onboarding modules
+│   └── uninstall/          # Ownership-aware purge implementation
 ├── ssh/                    # SSH client configuration and templates
 │   ├── config              # Global defaults, ControlMaster multiplexing, Git routing
 │   └── config.local.example# Template for corporate hosts, bastions, and tunnels
+├── starship/               # Cross-shell prompt using the official Nerd Font Symbols preset
 ├── tmux/                   # Minimalist top-bar Tmux configuration (tmux.conf + copy.sh)
-├── uninstall.sh            # Safe teardown (keeps ~/.config/zsh/local.zsh and git/config.local)
+├── uninstall.sh            # Safe teardown with optional ownership-aware purge
 └── zsh/
     ├── .zshenv             # Sets $ZDOTDIR to ~/.config/zsh
     ├── .zshrc              # Modular initialization loader
     ├── local.zsh.example   # Template for local environment variables & tokens
-    ├── config/             # Aliases, completions, exports, functions, history, prompt
-    └── integrations/       # Fzf, Mise, plugins (autosuggestions/syntax-highlighting), Zoxide
+    ├── config/             # Aliases, completions, exports, functions, history
+    └── integrations/       # Fzf, Mise, Starship, plugins and Zoxide
 ```
 
 Machine-specific secrets are **not** stored in this repository. After install, `~/.config/zsh/local.zsh` and `~/.config/git/config.local` are regular files in those directories (the repo only provides templates).
@@ -213,16 +218,24 @@ Machine-specific secrets are **not** stored in this repository. After install, `
 ## Management
 
 ```bash
-make install    # Deploy symlinks, provision font, and install Mise tools
-make backup     # Create encrypted archive of local secrets and SSH keys
-make restore    # Restore secrets and SSH keys from a backup archive
-make update     # Bump pinned plugin SHAs, bootstrap checksums, and mise.lock
-make check      # Lint plus backup/restore and shell-helper tests (what CI runs)
-make test       # Alias for check
-make lint       # Validate syntax and run ShellCheck analysis
-make uninstall  # Revert symlinks and restore original files
+make install          # Deploy symlinks, provision font, and install Mise tools
+make install-offline  # Deploy configs without network downloads or tool installation
+make doctor           # Diagnose links, permissions, configs and managed runtimes
+make backup           # Create encrypted archive of local secrets and SSH keys
+make restore          # Restore secrets and SSH keys from a backup archive
+make update           # Bump plugin/bootstrap pins; Java remains constrained to 25
+make check            # Lint plus backup/restore and shell-helper tests (what CI runs)
+make test             # Alias for check
+make lint             # Validate syntax and run ShellCheck analysis
+make uninstall        # Revert symlinks and restore original files
 ```
 
-Install is reproducible: plugin SHAs, font/Mise checksums, and `mise.lock` are committed. `make update` rewrites those pins to current upstream versions — review the diff and commit it.
+`make doctor` is read-only. It reports broken links, unsafe SSH permissions, invalid Bash/Zsh/TOML/Git configuration, plugin drift, and missing runtime components. Warnings such as an intentionally uninstalled Starship do not fail the command; structural or permission errors do.
+
+For a normal removal, use `make uninstall`. To additionally remove clean plugin checkouts and the Mise bootstrap binary recorded as created by this repository, run `./uninstall.sh --purge`. Purge refuses unregistered plugins, changed Git origins, dirty checkouts, modified binaries, and unsafe ownership manifests. Mise-managed tool versions are deliberately preserved.
+
+`mise install` resolves the latest stable release of each declared tool at execution time; Java resolves only within major version 25. Plugin SHAs and bootstrap artifacts remain pinned and checksummed. Run `make update` to refresh those pins and review the diff before committing.
+
+The Starship configuration is the official Nerd Font Symbols preset. Refresh it from the repository root with `starship preset nerd-font-symbols -o starship/starship.toml`.
 
 `~/.config/zsh/local.zsh` and `~/.config/git/config.local` stay as regular files (not repo symlinks), same idea as `~/.ssh/config.local`.

@@ -1,23 +1,27 @@
 [tools]
-bun = "1.4.0"
-go = "1.27.0"
-java = "25.0.2"
-node = "24.20.0"
-python = "3.12.14"
-rust = "stable"
-uv = "0.12.8"
+bun = "latest"
+go = "latest"
+java = "25"
+node = "latest"
+python = "latest"
+rust = "latest"
+uv = "latest"
 
-bat = "0.26.1"
-eza = "0.23.5"
-fd = "10.5.0"
-fzf = "0.74.3"
-gh = "2.98.0"
-jq = "1.8.2"
-ripgrep = "15.2.0"
-shellcheck = "0.11.0"
-tmux = "3.7c"
-zoxide = "0.10.0"
+bat = "latest"
+eza = "latest"
+fd = "latest"
+fzf = "latest"
+gh = "latest"
+jq = "latest"
+ripgrep = "latest"
+shellcheck = "latest"
+starship = "latest"
+tmux = "latest"
+zoxide = "latest"
+ffmpeg = "latest"
 
 [settings]
 legacy_version_file = true
-locked = true
+lockfile = false
+locked = false
+minimum_release_age = "0s"

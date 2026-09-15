@@ -80,15 +80,8 @@ if command -v git >/dev/null 2>&1 && [[ -d "$PLUGIN_DIR" ]]; then
     done <"$plugin_lock"
 fi
 
-echo "==> Updating Mise pins"
-if command -v mise >/dev/null 2>&1; then
-    mise trust "$ROOT/mise/config.toml" >/dev/null
-    # upgrade --bump rewrites pins in config.toml; lock refreshes checksums.
-    (cd "$ROOT" && mise upgrade --bump && mise lock -p linux-x64,linux-arm64,macos-x64,macos-arm64)
-    echo "==> Installing locked Mise tools"
-    MISE_LOCKED=1 mise install --locked || echo "warning: mise install --locked failed"
-else
-    echo "Mise was not found; skipped the lockfile update."
-fi
+echo "==> Mise uses rolling selectors"
+echo "    Run 'mise install' when you want to resolve and install current releases."
+echo "    Java remains constrained to major version 25."
 
-echo "==> Done. Review and commit locks/, mise/config.toml, and mise/mise.lock."
+echo "==> Done. Review and commit locks/."

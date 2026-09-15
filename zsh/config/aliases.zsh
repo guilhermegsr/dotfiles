@@ -3,8 +3,13 @@ if command -v eza >/dev/null 2>&1; then
     alias la='eza --icons --color=auto -la'
     alias tree='eza --icons --color=auto --tree'
 else
-    alias ls='ls -l --color=auto'
-    alias la='ls -la --color=auto'
+    if [[ "$OSTYPE" == darwin* ]]; then
+        alias ls='ls -lG'
+        alias la='ls -laG'
+    else
+        alias ls='ls -l --color=auto'
+        alias la='ls -la --color=auto'
+    fi
 fi
 
 if command -v bat >/dev/null 2>&1; then
@@ -24,4 +29,3 @@ alias free='free -h'
 alias mkdir='mkdir -p'
 
 alias ssh-keys='ssh-add -l'
-alias ssh-clean='rm -rf ~/.ssh/sockets/*'

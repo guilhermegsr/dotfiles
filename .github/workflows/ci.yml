@@ -3,8 +3,7 @@ name: CI
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -13,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install system dependencies
         run: |
@@ -23,9 +22,18 @@ jobs:
       - name: make check
         run: make check
 
+      - name: Prepare isolated home
+        run: |
+          test_home="$RUNNER_TEMP/dotfiles-home"
+          mkdir -p "$test_home"
+          echo "HOME=$test_home" >> "$GITHUB_ENV"
+          echo "XDG_CONFIG_HOME=$test_home/.config" >> "$GITHUB_ENV"
+          echo "XDG_DATA_HOME=$test_home/.local/share" >> "$GITHUB_ENV"
+          echo "XDG_STATE_HOME=$test_home/.local/state" >> "$GITHUB_ENV"
+
       - name: Test installation script
         run: |
-          DOTFILES_SKIP_CHSH=1 ./install.sh
+          ./install.sh --offline --no-chsh
 
       - name: Verify generated layout
         run: |
@@ -41,12 +49,15 @@ jobs:
           test -L "$HOME/.config/git/config"
           test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.config/mise/config.toml"
-          test -L "$HOME/.config/mise/mise.lock"
+          test -L "$HOME/.config/starship.toml"
           test -L "$HOME/.config/tmux"
           test -x "$HOME/.config/tmux/copy.sh"
           test -L "$HOME/.config/alacritty"
           test -d "$HOME/.ssh/conf.d"
           test -d "$HOME/.ssh/keys/personal"
+
+      - name: Run dotfiles doctor
+        run: make doctor
 
       - name: Test uninstallation script
         run: |
@@ -58,6 +69,7 @@ jobs:
           ! test -L "$HOME/.zshenv"
           ! test -L "$HOME/.config/git/config"
           ! test -L "$HOME/.config/mise/config.toml"
+          ! test -L "$HOME/.config/starship.toml"
           ! test -L "$HOME/.config/tmux"
           ! test -L "$HOME/.config/alacritty"
           test -f "$HOME/.config/zsh/local.zsh"

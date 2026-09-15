@@ -26,7 +26,7 @@ Usage: restore.sh [--yes] [backup_archive]
   -h, --help Show this help
 
 Only allowlisted paths are restored. Members with '..', absolute paths,
-or symbolic links are rejected. Set DOTFILES_OPENSSL_PASS_FILE to a
+symbolic links, or special file types are rejected. Set DOTFILES_OPENSSL_PASS_FILE to a
 passphrase file for non-interactive OpenSSL decryption.
 EOF
 }
@@ -266,6 +266,18 @@ if [[ "$ASSUME_YES" != true ]]; then
 fi
 
 info "Extracting to a staging directory"
+# Only directories and regular files are valid backup members. Validate the
+# archive headers before extraction, then verify the extracted tree as well.
+while IFS= read -r verbose_member; do
+    case "${verbose_member:0:1}" in
+        -|d) ;;
+        *)
+            error "Refusing to restore an archive containing non-regular members."
+            exit 1
+            ;;
+    esac
+done < <(LC_ALL=C tar -tvzf "$TEMP_TAR")
+
 # Extract the whole archive; listing child members after a dir makes GNU tar error.
 tar -xzf "$TEMP_TAR" -C "$STAGE_DIR"
 
@@ -276,18 +288,15 @@ while IFS= read -r -d '' staged; do
         error "Unexpected path after extraction: $local_rel"
         exit 1
     fi
+    if [[ -L "$staged" ]]; then
+        error "Refusing to restore symbolic link: $local_rel"
+        exit 1
+    fi
+    if [[ ! -d "$staged" && ! -f "$staged" ]]; then
+        error "Refusing to restore non-regular member: $local_rel"
+        exit 1
+    fi
 done < <(find "$STAGE_DIR" -print0)
-
-symlink_found=false
-while IFS= read -r -d '' _; do
-    symlink_found=true
-    break
-done < <(find "$STAGE_DIR" -type l -print0 2>/dev/null)
-
-if [[ "$symlink_found" == true ]]; then
-    error "Refusing to restore: the archive contains symbolic links."
-    exit 1
-fi
 
 info "Copying files into $HOME"
 cp -a "$STAGE_DIR"/. "$HOME"/

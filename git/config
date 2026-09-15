@@ -13,7 +13,6 @@
 
 [fetch]
     prune = true
-    pruneTags = true
 
 [core]
     autocrlf = input

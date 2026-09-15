@@ -27,6 +27,15 @@ echo "# local" >"$HOME/.config/zsh/local.zsh"
 tar -tzf "$TESTHOME/good.tar.gz" | grep -q ".ssh/keys" || fail "plain backup missing keys"
 pass "backup --plain"
 
+printf '%s\n' "keep-existing" >"$TESTHOME/existing.tar.gz"
+if "$ROOT/backup.sh" --plain "$TESTHOME/existing.tar.gz" >/dev/null 2>&1; then
+    fail "backup replaced an existing output without --force"
+fi
+grep -q '^keep-existing$' "$TESTHOME/existing.tar.gz" || fail "existing backup output was modified"
+"$ROOT/backup.sh" --plain --force "$TESTHOME/existing.tar.gz" >/dev/null
+tar -tzf "$TESTHOME/existing.tar.gz" >/dev/null || fail "backup --force did not write an archive"
+pass "backup refuses overwrite unless --force is passed"
+
 export HOME="$RESTOREHOME"
 "$ROOT/restore.sh" --yes "$TESTHOME/good.tar.gz" >/dev/null
 [[ -f "$HOME/.ssh/keys/personal/id_ed25519" ]] || fail "restore did not write key"
@@ -60,6 +69,14 @@ if "$ROOT/restore.sh" --yes "$TESTHOME/sym.tar.gz" >/dev/null 2>&1; then
     fail "restore accepted symlink member"
 fi
 pass "restore rejected symlink"
+
+mkdir -p "$TESTHOME/fifo/.ssh/keys"
+mkfifo "$TESTHOME/fifo/.ssh/keys/blocked"
+tar -czf "$TESTHOME/fifo.tar.gz" -C "$TESTHOME/fifo" .ssh/keys
+if "$ROOT/restore.sh" --yes "$TESTHOME/fifo.tar.gz" >/dev/null 2>&1; then
+    fail "restore accepted FIFO member"
+fi
+pass "restore rejected non-regular member"
 
 if "$ROOT/restore.sh" "$TESTHOME/good.tar.gz" </dev/null >/dev/null 2>&1; then
     fail "restore without TTY/--yes succeeded"

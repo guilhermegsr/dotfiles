@@ -20,9 +20,10 @@ OPENSSL_ITER=600000
 
 usage() {
     cat <<'EOF'
-Usage: backup.sh [--plain] [output_path]
+Usage: backup.sh [--plain] [--force] [output_path]
 
   --plain    Skip encryption. The archive will contain SSH private keys.
+  --force    Replace an existing output file.
   -h, --help Show this help
 
 Encryption is on by default. age is preferred; OpenSSL AES-256-CBC with
@@ -32,12 +33,17 @@ EOF
 }
 
 PLAIN=false
+FORCE=false
 OUTPUT_FILE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --plain)
             PLAIN=true
+            shift
+            ;;
+        --force)
+            FORCE=true
             shift
             ;;
         -h|--help)
@@ -161,8 +167,22 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 
+if [[ -d "$OUTPUT_FILE" ]]; then
+    error "Output path is a directory: $OUTPUT_FILE"
+    exit 1
+fi
+
+if [[ "$FORCE" != true && ( -e "$OUTPUT_FILE" || -L "$OUTPUT_FILE" ) ]]; then
+    error "Output file already exists: $OUTPUT_FILE"
+    error "Choose another path or pass --force to replace it."
+    exit 1
+fi
+
 TEMP_TAR="$(mktemp)"
-trap 'rm -f "$TEMP_TAR"' EXIT
+OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
+OUTPUT_STAGE_DIR="$(mktemp -d "$OUTPUT_DIR/.dotfiles-backup.XXXXXX")"
+OUTPUT_TEMP="$OUTPUT_STAGE_DIR/archive"
+trap 'rm -f "$TEMP_TAR"; rm -rf "$OUTPUT_STAGE_DIR"' EXIT
 
 tar -czf "$TEMP_TAR" -C "$HOME" "${TARGETS[@]}"
 
@@ -170,20 +190,18 @@ if [[ "$ENCRYPT" == true ]]; then
     info "Encrypting archive"
     case "$ENCRYPT_TOOL" in
         age)
-            if ! age -p -o "$OUTPUT_FILE" "$TEMP_TAR"; then
+            if ! age -p -o "$OUTPUT_TEMP" "$TEMP_TAR"; then
                 error "Encryption failed."
-                rm -f "$OUTPUT_FILE"
                 exit 1
             fi
             ;;
         openssl)
-            openssl_args=(-aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -in "$TEMP_TAR" -out "$OUTPUT_FILE")
+            openssl_args=(-aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -in "$TEMP_TAR" -out "$OUTPUT_TEMP")
             if [[ -n "$OPENSSL_PASS_FILE" ]]; then
                 openssl_args+=(-pass "file:${OPENSSL_PASS_FILE}")
             fi
             if ! openssl enc "${openssl_args[@]}"; then
                 error "Encryption failed."
-                rm -f "$OUTPUT_FILE"
                 exit 1
             fi
             ;;
@@ -192,12 +210,32 @@ if [[ "$ENCRYPT" == true ]]; then
             exit 1
             ;;
     esac
-    chmod 600 "$OUTPUT_FILE"
-    success "Saved to $OUTPUT_FILE"
 else
-    mv "$TEMP_TAR" "$OUTPUT_FILE"
-    chmod 600 "$OUTPUT_FILE"
-    success "Saved to $OUTPUT_FILE"
+    mv "$TEMP_TAR" "$OUTPUT_TEMP"
+    TEMP_TAR=""
 fi
+
+chmod 600 "$OUTPUT_TEMP"
+
+# Check again immediately before the atomic rename in case the path appeared
+# while the archive was being created.
+if [[ "$FORCE" != true && ( -e "$OUTPUT_FILE" || -L "$OUTPUT_FILE" ) ]]; then
+    error "Output file appeared while creating the backup: $OUTPUT_FILE"
+    error "The new archive was not installed. Pass --force to replace it."
+    exit 1
+fi
+
+if [[ -d "$OUTPUT_FILE" ]]; then
+    error "Output path became a directory while creating the backup: $OUTPUT_FILE"
+    exit 1
+fi
+
+if [[ "$FORCE" == true && -L "$OUTPUT_FILE" ]]; then
+    rm -f "$OUTPUT_FILE"
+fi
+
+mv -f "$OUTPUT_TEMP" "$OUTPUT_FILE"
+rmdir "$OUTPUT_STAGE_DIR"
+success "Saved to $OUTPUT_FILE"
 
 printf "\n%bBackup complete.%b\n\n" "${BOLD}${GREEN}" "$NC"

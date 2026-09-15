@@ -4,8 +4,14 @@
 .zcompdump*
 zcompdump*
 
+# Mise uses rolling selectors; lockfile generation is intentionally disabled
+/mise/mise.lock
+
 # Backups
 *.bak*
+dotfiles-backup-*.tar.gz*
+*.age
+*.enc
 
 # Local overrides & secrets
 *.local

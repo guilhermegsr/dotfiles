@@ -30,16 +30,25 @@ error() {
     printf "  %b[ERROR]%b %s\n" "$RED" "$NC" "$1" >&2
 }
 
+dotfiles_state_dir() {
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+}
+
 dotfiles_previous_shell_file() {
-    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/previous-shell"
+    printf '%s/previous-shell\n' "$(dotfiles_state_dir)"
 }
 
 backup_if_exists() {
     local target="$1"
-    if [[ -e "$target" && ! -L "$target" ]]; then
-        local timestamp
+    if [[ -e "$target" || -L "$target" ]]; then
+        local timestamp counter
         timestamp="$(date +%Y%m%d_%H%M%S)"
         local backup="${target}.bak.${timestamp}"
+        counter=0
+        while [[ -e "$backup" || -L "$backup" ]]; do
+            counter=$((counter + 1))
+            printf -v backup '%s.bak.%s.%03d' "$target" "$timestamp" "$counter"
+        done
         warn "Backing up $target to $backup"
         mv "$target" "$backup"
     fi
@@ -59,7 +68,7 @@ link_file() {
             return 0
         fi
         warn "Replacing symlink $dest, currently pointing to $current_target"
-        rm "$dest"
+        backup_if_exists "$dest"
     elif [[ -e "$dest" ]]; then
         backup_if_exists "$dest"
     fi
@@ -91,13 +100,13 @@ unlink_file() {
 restore_latest_backup() {
     local target="$1"
     local latest_backup parent
-    if [[ -e "$target" ]]; then
+    if [[ -e "$target" || -L "$target" ]]; then
         return 0
     fi
     parent="$(dirname "$target")"
     [[ -d "$parent" ]] || return 0
     latest_backup="$(find "$parent" -maxdepth 1 -name "$(basename "$target").bak.*" 2>/dev/null | sort | tail -n 1)"
-    if [[ -n "$latest_backup" && -e "$latest_backup" ]]; then
+    if [[ -n "$latest_backup" && ( -e "$latest_backup" || -L "$latest_backup" ) ]]; then
         info "Restoring $target from $latest_backup"
         mv "$latest_backup" "$target"
         success "Restored $target"
