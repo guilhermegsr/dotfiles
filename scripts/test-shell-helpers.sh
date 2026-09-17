@@ -33,9 +33,17 @@ print -r -- \"\$STARSHIP_CONFIG\"
 [[ "$starship_config" == "$ROOT/starship/starship.toml" ]] || fail "Starship config resolved to '$starship_config'"
 pass "Starship integration resolves the versioned config"
 
-local_line="$(grep -n 'local\.zsh' "$ROOT/zsh/.zshrc" | cut -d: -f1)"
-first_integration_line="$(grep -n 'source .*integrations/' "$ROOT/zsh/.zshrc" | head -n 1 | cut -d: -f1)"
-[[ "$local_line" -lt "$first_integration_line" ]] || fail "local overrides load after an integration"
+zshrc_line() {
+    grep -n "$1" "$ROOT/zsh/.zshrc" | head -n 1 | cut -d: -f1
+}
+mise_line="$(zshrc_line 'integrations/mise.zsh')"
+aliases_line="$(zshrc_line 'config/aliases.zsh')"
+[[ -n "$mise_line" && -n "$aliases_line" && "$mise_line" -lt "$aliases_line" ]] || fail "mise loads after aliases"
+pass "mise activates before aliases"
+
+local_line="$(zshrc_line 'local\.zsh')"
+first_ui_integration_line="$(grep -n 'source .*integrations/\(fzf\|zoxide\|starship\|plugins\)' "$ROOT/zsh/.zshrc" | head -n 1 | cut -d: -f1)"
+[[ -n "$local_line" && -n "$first_ui_integration_line" && "$local_line" -lt "$first_ui_integration_line" ]] || fail "local overrides load after an integration"
 pass "local overrides load before shell integrations"
 
 help_output="$("$ROOT/install.sh" --help)"
