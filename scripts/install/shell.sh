@@ -24,24 +24,34 @@ configure_login_shell() {
     fi
 
     info "Setting login shell to $ZSH_PATH"
-    local previous_shell_file
+
+    # Nothing is recorded on the paths that leave the shell alone: uninstall
+    # reads this file to run chsh, and must only revert a switch we made.
+    if [[ "$SKIP_CHSH" == true ]]; then
+        info "Skipping chsh; would switch to $ZSH_PATH"
+        return 0
+    fi
+    if ! command -v chsh >/dev/null 2>&1; then
+        warn "chsh was not found; set the login shell manually"
+        return 0
+    fi
+
+    # Written before the switch so an interrupted chsh still leaves a trail,
+    # and dropped again when chsh refuses, which leaves the shell unchanged.
+    local previous_shell_file recorded_now=false
     previous_shell_file="$(dotfiles_previous_shell_file)"
     mkdir -p "$(dirname "$previous_shell_file")"
     if [[ ! -f "$previous_shell_file" && -n "$current_shell" ]]; then
         printf '%s\n' "$current_shell" >"$previous_shell_file"
         chmod 600 "$previous_shell_file"
+        recorded_now=true
     fi
 
-    if [[ "$SKIP_CHSH" == true ]]; then
-        info "Skipping chsh; would switch to $ZSH_PATH"
-    elif command -v chsh >/dev/null 2>&1; then
-        if chsh -s "$ZSH_PATH"; then
-            success "Login shell set to $ZSH_PATH"
-        else
-            warn "Could not change the login shell. Run: chsh -s $ZSH_PATH"
-        fi
+    if chsh -s "$ZSH_PATH"; then
+        success "Login shell set to $ZSH_PATH"
     else
-        warn "chsh was not found; set the login shell manually"
+        [[ "$recorded_now" == true ]] && rm -f "$previous_shell_file"
+        warn "Could not change the login shell. Run: chsh -s $ZSH_PATH"
     fi
 }
 

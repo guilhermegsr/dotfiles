@@ -160,6 +160,36 @@ fi
 [[ "$(readlink "$GUARDHOME/config/zsh")" == "$GUARDHOME/original-zsh" ]] || fail "installer changed an unrelated symlink target"
 pass "installer refuses to replace an unrelated config directory symlink"
 
+# uninstall runs chsh against previous-shell, so the file must exist only when
+# the installer really switched the shell. A zsh of our own keeps the run from
+# taking the "already zsh" exit, wherever these tests happen to be running.
+CHSHHOME="$WORKDIR/chsh-home"
+mkdir -p "$CHSHHOME/fakebin"
+printf '%s\n' '#!/bin/sh' 'exit 0' >"$CHSHHOME/fakebin/zsh"
+printf '%s\n' '#!/bin/sh' "printf '%s\\n' \"\$*\" >>'$CHSHHOME/chsh.log'" >"$CHSHHOME/fakebin/chsh"
+chmod 755 "$CHSHHOME/fakebin/zsh" "$CHSHHOME/fakebin/chsh"
+
+chsh_install() {
+    mkdir -p "$CHSHHOME/$1"
+    env HOME="$CHSHHOME/$1" XDG_CONFIG_HOME="$CHSHHOME/$1/config" \
+        XDG_DATA_HOME="$CHSHHOME/$1/data" XDG_STATE_HOME="$CHSHHOME/$1/state" \
+        SHELL=/bin/sh PATH="$CHSHHOME/fakebin:$PATH" \
+        "$ROOT/install.sh" --offline "${@:2}" >/dev/null 2>&1
+}
+
+: >"$CHSHHOME/chsh.log"
+chsh_install skipped --no-chsh || fail "offline install with --no-chsh exited non-zero"
+[[ ! -s "$CHSHHOME/chsh.log" ]] || fail "--no-chsh ran chsh"
+[[ ! -e "$CHSHHOME/skipped/state/dotfiles/previous-shell" ]] \
+    || fail "--no-chsh recorded a login shell it never switched"
+
+chsh_install switched || fail "offline install exited non-zero"
+grep -q "fakebin/zsh" "$CHSHHOME/chsh.log" || fail "install did not run chsh"
+recorded_shell="$(cat "$CHSHHOME/switched/state/dotfiles/previous-shell" 2>/dev/null || true)"
+[[ -n "$recorded_shell" && "$recorded_shell" != *fakebin/zsh ]] \
+    || fail "install did not record the shell it switched away from"
+pass "a login shell is recorded only when the installer switches it"
+
 zsh -c "
 set -e
 source '$ROOT/zsh/config/functions.zsh'
