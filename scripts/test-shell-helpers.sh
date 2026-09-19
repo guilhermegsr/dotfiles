@@ -46,6 +46,37 @@ first_ui_integration_line="$(grep -n 'source .*integrations/\(fzf\|zoxide\|stars
 [[ -n "$local_line" && -n "$first_ui_integration_line" && "$local_line" -lt "$first_ui_integration_line" ]] || fail "local overrides load after an integration"
 pass "local overrides load before shell integrations"
 
+# HISTORY_IGNORE is the last line of defence when a secret ends up on a command
+# line, so its pattern is pinned by example rather than by eye.
+history_ignore_verdict() {
+    XDG_STATE_HOME="$WORKDIR/history-state" zsh -c "
+        source '$ROOT/zsh/config/history.zsh'
+        if [[ \"\$1\" = \${~HISTORY_IGNORE} ]]; then print ignored; else print kept; fi
+    " zsh "$1"
+}
+
+while IFS='|' read -r expected command; do
+    [[ -z "$expected" ]] && continue
+    verdict="$(history_ignore_verdict "$command")"
+    [[ "$verdict" == "$expected" ]] \
+        || fail "history ignore: expected $expected for '$command', got $verdict"
+done <<'CASES'
+ignored|export GITHUB_TOKEN=ghp_example
+ignored|GITHUB_TOKEN=ghp_example gh api /user
+ignored|export AWS_SECRET_ACCESS_KEY=example
+ignored|PGPASSWORD=example psql -U app
+ignored|curl -H "Authorization: Bearer example" https://api.example.com
+ignored|gh auth login --with-token
+ignored|ssh-add /home/test/.ssh/id_ed25519
+ignored|mysql -u root --password=example
+ignored|openssl enc -aes-256-cbc -pass pass:example
+kept|git status
+kept|grep -rn token src/
+kept|vim ~/.config/zsh/local.zsh
+kept|make check
+CASES
+pass "history file skips secret-bearing commands and keeps ordinary ones"
+
 help_output="$("$ROOT/install.sh" --help)"
 grep -q -- '--offline' <<<"$help_output" || fail "installer help omits --offline"
 grep -q -- '--no-chsh' <<<"$help_output" || fail "installer help omits --no-chsh"

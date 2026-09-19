@@ -8,7 +8,11 @@ chmod 600 "$HISTFILE"
 HISTSIZE=50000
 SAVEHIST=50000
 
-HISTORY_IGNORE='(export *TOKEN*|export *SECRET*|export *API_KEY*|export *PASS*|ssh-add*|openssl *)'
+# Applied when the history file is written, so a matching command never reaches
+# disk. It still sits in the running shell's in-memory history until then.
+# The VAR=value forms matter as much as `export`: `PGPASSWORD=x psql` and
+# `TOKEN=x cmd` put the secret on the command line just the same.
+HISTORY_IGNORE='(*(TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY|ACCESS_KEY|PRIVATE_KEY)=*|*--password*|*--token*|*Authorization:*|gh auth login*|ssh-add*|openssl *)'
 
 setopt EXTENDED_HISTORY
 setopt SHARE_HISTORY
