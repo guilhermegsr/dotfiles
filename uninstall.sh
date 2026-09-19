@@ -72,7 +72,9 @@ if [[ -L "$CONFIG_DIR/git/config" ]]; then
     restore_latest_backup "$CONFIG_DIR/git/config"
 fi
 
-# Machine-local file: drop our include, keep whatever else it holds.
+# Machine-local file: drop both includes the installer wrote, keep whatever
+# else it holds. The dotfiles include is the proof that we wrote them, so a
+# config we never touched is left alone entirely.
 GIT_GLOBAL_CONFIG="$CONFIG_DIR/git/config"
 if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
     git_includes=()
@@ -83,10 +85,17 @@ if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
     if printf '%s\n' "${git_includes[@]+"${git_includes[@]}"}" | grep -qxF "$DOTFILES_DIR/git/config"; then
         git config --file "$GIT_GLOBAL_CONFIG" --unset-all include.path || true
         for include_path in "${git_includes[@]+"${git_includes[@]}"}"; do
-            [[ "$include_path" == "$DOTFILES_DIR/git/config" ]] && continue
+            case "$include_path" in
+                "$DOTFILES_DIR/git/config" | config.local) continue ;;
+            esac
             git config --file "$GIT_GLOBAL_CONFIG" --add include.path "$include_path"
         done
-        success "Removed the dotfiles include from $GIT_GLOBAL_CONFIG"
+        success "Removed the dotfiles includes from $GIT_GLOBAL_CONFIG"
+        # The file stays: it is the one place that still holds an identity.
+        if [[ -s "$CONFIG_DIR/git/config.local" ]]; then
+            warn "$CONFIG_DIR/git/config.local is no longer read by Git, and still holds what you put there"
+            warn "Keep it with: git config --global --add include.path config.local"
+        fi
     else
         info "No dotfiles include in $GIT_GLOBAL_CONFIG"
     fi

@@ -415,6 +415,8 @@ credential_doctor_output '!/x/.local/share/mise/shims/gh auth git-credential' \
     | grep -q "version-independent" || fail "doctor flagged a shim credential helper"
 pass "doctor flags credential helpers that gh breaks on upgrade"
 
+git config --file "$XDG_CONFIG_HOME/git/config" --add include.path /unrelated/include
+
 mkdir -p "$XDG_STATE_HOME/dotfiles"
 mkdir -p "$XDG_CONFIG_HOME/mise"
 printf '%s\n' "/bin/sh" >"$XDG_STATE_HOME/dotfiles/previous-shell"
@@ -476,9 +478,11 @@ pass "uninstall removes the legacy Mise lock symlink"
 [[ -f "$XDG_CONFIG_HOME/git/config" ]] || fail "uninstall removed the machine-local global Git config"
 ! git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "$ROOT/git/config" \
     || fail "uninstall kept the dotfiles include in the global Git config"
-git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "config.local" \
-    || fail "uninstall dropped the config.local include"
-pass "uninstall removes only the dotfiles include from the global Git config"
+! git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "config.local" \
+    || fail "uninstall kept the config.local include the installer wrote"
+git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "/unrelated/include" \
+    || fail "uninstall dropped an include it did not write"
+pass "uninstall removes both includes the installer wrote, and only those"
 [[ ! -e "$managed_plugin" ]] || fail "purge kept a recorded clean plugin"
 [[ -d "$dirty_plugin" ]] || fail "purge removed a plugin with local changes"
 [[ -d "$XDG_DATA_HOME/zsh/plugins/user-plugin" ]] || fail "purge removed an unregistered plugin"
