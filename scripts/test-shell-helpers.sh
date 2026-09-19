@@ -190,6 +190,39 @@ recorded_shell="$(cat "$CHSHHOME/switched/state/dotfiles/previous-shell" 2>/dev/
     || fail "install did not record the shell it switched away from"
 pass "a login shell is recorded only when the installer switches it"
 
+# `mise install` leaves gigabytes beside the binary. Purging the binary orphans
+# them, so they go too -- unless another Mise is left to own them.
+MISEHOME="$WORKDIR/mise-home"
+mkdir -p "$MISEHOME/other-mise"
+printf '%s\n' '#!/bin/sh' 'exit 0' >"$MISEHOME/other-mise/mise"
+chmod 755 "$MISEHOME/other-mise/mise"
+
+mise_purge_home() {
+    local home="$MISEHOME/$1"
+    mkdir -p "$home/state/dotfiles" "$home/.local/bin" \
+        "$home/data/mise/installs/node" "$home/state/mise" "$home/cache/mise"
+    printf '%s\n' '#!/bin/sh' 'echo "1.2.3 linux-x64"' >"$home/.local/bin/mise"
+    chmod 755 "$home/.local/bin/mise"
+    printf 'path=%s\nversion=1.2.3\nsha256=%s\n' "$home/.local/bin/mise" \
+        "$(sha256_file "$home/.local/bin/mise")" >"$home/state/dotfiles/managed-mise"
+    env HOME="$home" XDG_CONFIG_HOME="$home/config" XDG_DATA_HOME="$home/data" \
+        XDG_STATE_HOME="$home/state" XDG_CACHE_HOME="$home/cache" \
+        PATH="$2" DOTFILES_SKIP_CHSH=1 "$ROOT/uninstall.sh" --purge >/dev/null 2>&1
+}
+
+mise_purge_home alone "/usr/bin:/bin" || fail "purge exited non-zero with no Mise left"
+[[ ! -e "$MISEHOME/alone/.local/bin/mise" ]] || fail "purge kept the recorded Mise binary"
+[[ ! -e "$MISEHOME/alone/data/mise" ]] || fail "purge orphaned the Mise installs directory"
+[[ ! -e "$MISEHOME/alone/state/mise" ]] || fail "purge orphaned the Mise state directory"
+[[ ! -e "$MISEHOME/alone/cache/mise" ]] || fail "purge orphaned the Mise cache directory"
+
+mise_purge_home shared "$MISEHOME/other-mise:/usr/bin:/bin" \
+    || fail "purge exited non-zero with another Mise present"
+[[ ! -e "$MISEHOME/shared/.local/bin/mise" ]] || fail "purge kept the recorded Mise binary"
+[[ -d "$MISEHOME/shared/data/mise/installs/node" ]] \
+    || fail "purge removed tools another Mise still owns"
+pass "purge takes the Mise tool tree only when no other Mise remains"
+
 zsh -c "
 set -e
 source '$ROOT/zsh/config/functions.zsh'

@@ -101,13 +101,48 @@ purge_managed_mise() {
     fi
 
     rm -f "$managed_path" "$marker"
+    PURGED_MISE_BINARY=true
     success "Removed dotfiles-managed Mise $managed_version"
+}
+
+# `mise install` provisions gigabytes of tools beside the binary. They are only
+# reachable through a Mise, so removing the one we own orphans them -- unless
+# the machine still has another, which then owns them and keeps them.
+purge_managed_mise_data() {
+    local remaining
+    remaining="$(command -v mise 2>/dev/null || true)"
+    if [[ -n "$remaining" ]]; then
+        warn "Keeping the Mise data; another Mise is still installed at $remaining"
+        return 0
+    fi
+
+    local dir size removed=0
+    for dir in "$DATA_DIR/mise" \
+        "${XDG_STATE_HOME:-$HOME/.local/state}/mise" \
+        "${XDG_CACHE_HOME:-$HOME/.cache}/mise"; do
+        [[ -d "$dir" && ! -L "$dir" ]] || continue
+        size="$(du -sh "$dir" 2>/dev/null | cut -f1 || true)"
+        rm -rf -- "$dir"
+        info "Removed $dir${size:+ ($size)}"
+        removed=$((removed + 1))
+    done
+
+    if [[ $removed -gt 0 ]]; then
+        success "Removed the tools the managed Mise had installed"
+    else
+        info "The managed Mise had installed no tools"
+    fi
 }
 
 purge_managed_assets() {
     section "Purge managed assets"
+    PURGED_MISE_BINARY=false
     purge_managed_plugins
     purge_managed_mise
+    if [[ "$PURGED_MISE_BINARY" == true ]]; then
+        purge_managed_mise_data
+    fi
     sweep_stale_staging "$DATA_DIR/zsh/plugins" ".dotfiles-plugin.*"
-    rmdir "$DATA_DIR/zsh/plugins" "$DATA_DIR/zsh" "$STATE_DIR" 2>/dev/null || true
+    rmdir "$DATA_DIR/zsh/plugins" "$DATA_DIR/zsh" "$DATA_DIR/fonts" \
+        "$HOME/.local/bin" "$STATE_DIR" 2>/dev/null || true
 }
