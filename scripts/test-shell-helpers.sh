@@ -46,8 +46,7 @@ first_ui_integration_line="$(grep -n 'source .*integrations/\(fzf\|zoxide\|stars
 [[ -n "$local_line" && -n "$first_ui_integration_line" && "$local_line" -lt "$first_ui_integration_line" ]] || fail "local overrides load after an integration"
 pass "local overrides load before shell integrations"
 
-# HISTORY_IGNORE is the last line of defence when a secret ends up on a command
-# line, so its pattern is pinned by example rather than by eye.
+# Pinned by example: the pattern is too easy to break by eye.
 history_ignore_verdict() {
     XDG_STATE_HOME="$WORKDIR/history-state" zsh -c "
         source '$ROOT/zsh/config/history.zsh'
@@ -89,7 +88,6 @@ if "$ROOT/uninstall.sh" --invalid-option >/dev/null 2>&1; then
 fi
 pass "install and uninstall validate command-line options"
 
-# Existing symlinks must be preserved and restored.
 mkdir -p "$WORKDIR/link-test"
 printf '%s\n' original >"$WORKDIR/link-test/original"
 printf '%s\n' managed >"$WORKDIR/link-test/managed"
@@ -107,7 +105,6 @@ restore_latest_backup "$WORKDIR/link-test/dest" >/dev/null
 [[ "$(readlink "$WORKDIR/link-test/dest")" == "$WORKDIR/link-test/original" ]] || fail "restored symlink has wrong target"
 pass "link replacement preserves and restores an existing symlink"
 
-# Directory symlinks owned by another setup must never be replaced implicitly.
 GUARDHOME="$WORKDIR/guard-home"
 mkdir -p "$GUARDHOME/config" "$GUARDHOME/original-zsh" "$GUARDHOME/data" "$GUARDHOME/state"
 ln -s "$GUARDHOME/original-zsh" "$GUARDHOME/config/zsh"
@@ -124,13 +121,11 @@ set -e
 source '$ROOT/zsh/config/functions.zsh'
 cd '$WORKDIR'
 
-# myip
 got=\$(printf '%s\n' '1.1.1.1 dev eth0 src 192.168.1.10 uid 1000' | _local_ip_from_route)
 [[ \$got == 192.168.1.10 ]] || exit 1
 got=\$(printf '%s\n' '1.1.1.1 via 192.168.1.1 dev eth0 src 10.0.0.5 uid 1000' | _local_ip_from_route)
 [[ \$got == 10.0.0.5 ]] || exit 1
 
-# extract ok
 mkdir safe
 echo hello > safe/file.txt
 tar -czf safe.tar.gz -C safe file.txt
@@ -139,7 +134,6 @@ extract ../safe.tar.gz >/dev/null
 [[ -f file.txt ]] || exit 1
 cd ..
 
-# extract rejects ..
 mkdir trav
 echo pwned > trav/id
 tar -czf trav.tar.gz -C trav --transform='s,^,../../,' id
@@ -151,11 +145,8 @@ pass "myip parses src from ip route"
 pass "extract allows a normal tar.gz"
 pass "extract refuses .. members"
 
-# unrar and 7z preserve paths and have a history of traversal bugs, so their
-# listings go through the same member check as tar and zip. Stubs keep the test
-# hermetic and cover both tools whether or not they are installed; each one
-# reproduces its tool's real listing format (`7z -slt` prefixes "Path = ",
-# `unrar lb` prints bare names), so the parsing is exercised too.
+# Stubs reproduce each tool's real listing format (`7z -slt` prefixes
+# "Path = ", `unrar lb` prints bare names), so the parsing is covered too.
 STUBDIR="$WORKDIR/stub-bin"
 mkdir -p "$STUBDIR"
 write_stub() {
@@ -197,7 +188,6 @@ for spec in "7z|l|evil.7z|Path = " "unrar|lb|evil.rar|"; do
 done
 pass "extract validates .7z and .rar members before extracting"
 
-# pubkey
 mkdir -p "$WORKDIR/keys"
 ssh-keygen -t ed25519 -N '' -f "$WORKDIR/keys/id_ed25519" -C test >/dev/null
 cp "$WORKDIR/keys/id_ed25519" "$WORKDIR/keys/orphan"
@@ -264,8 +254,7 @@ fi
 grep -q '0 errors' "$doctor_log" || fail "doctor did not report a clean result"
 pass "doctor validates an installed configuration without changing it"
 
-# The global Git config must stay machine-local: `git config --global` writes
-# (and tools such as `gh auth setup-git`) must never reach the repository.
+# `git config --global` writes must never reach the repository.
 git_global="$XDG_CONFIG_HOME/git/config"
 [[ -f "$git_global" && ! -L "$git_global" ]] || fail "global Git config is not a machine-local regular file"
 git config --file "$git_global" --get-all include.path | grep -qxF "$ROOT/git/config" \

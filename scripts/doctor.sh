@@ -103,8 +103,6 @@ else
     doctor_fail "Git configuration is invalid"
 fi
 
-# `gh auth setup-git` and friends used to land here while the global config was
-# a symlink into the repository.
 if grep -qE '(/home/|/Users/)' "$ROOT/git/config"; then
     doctor_fail "git/config holds machine-specific paths; move them to $CONFIG_DIR/git/config.local"
 else

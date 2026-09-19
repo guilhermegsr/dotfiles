@@ -78,8 +78,7 @@ if "$ROOT/restore.sh" --yes "$TESTHOME/fifo.tar.gz" >/dev/null 2>&1; then
 fi
 pass "restore rejected non-regular member"
 
-# `cp` writes through a symlink sitting at the destination, so a link planted
-# in HOME could redirect a restored file anywhere.
+# cp writes through a symlink sitting at the destination.
 SYMHOME="$(mktemp -d)"
 mkdir -p "$SYMHOME/.config/git" "$SYMHOME/elsewhere"
 printf '%s\n' original >"$SYMHOME/elsewhere/target"

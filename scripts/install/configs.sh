@@ -33,9 +33,7 @@ migrate_secret() {
     fi
 }
 
-# The global Git config stays a real file so that `git config --global` (and
-# tools like `gh auth setup-git`) write machine state here instead of into the
-# repository. It only points at the shared config and the local overrides.
+# A real file, not a symlink: `git config --global` must not write into the repo.
 install_git_global_config() {
     local global="$CONFIG_DIR/git/config"
     local shared="$DOTFILES_DIR/git/config"
@@ -55,10 +53,8 @@ install_git_global_config() {
 
     if [[ ! -e "$global" ]]; then
         cat >"$global" <<EOF
-# Machine-local global Git config, created by the dotfiles installer.
-# Shared settings live in $shared; identity and credential helpers belong in
-# config.local. Anything written by \`git config --global\` lands here and
-# stays out of the repository.
+# Machine-local Git config written by the dotfiles installer.
+# Shared settings live in $shared; \`git config --global\` writes land here.
 [include]
     path = $shared
 [include]

@@ -68,8 +68,7 @@ restore_latest_backup "$HOME/.zshenv"
 unlink_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
 restore_latest_backup "$CONFIG_DIR/git/config"
 
-# The migrated layout is a machine-local file; drop only our include and keep
-# the rest, the same way local.zsh and config.local are preserved.
+# Machine-local file: drop our include, keep whatever else it holds.
 GIT_GLOBAL_CONFIG="$CONFIG_DIR/git/config"
 if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
     git_includes=()

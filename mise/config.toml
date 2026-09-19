@@ -1,22 +1,17 @@
-# Languages are pinned to the series that actually gates breaking changes, so
-# `mise upgrade` moves within it and never crosses it on its own. Crossing a
-# pin is a deliberate edit that shows up in a diff and a commit.
+# Languages pin the series that gates breaking changes; crossing a pin is a
+# deliberate edit. See README for how versions move.
 [tools]
 bun = "1"
 go = "1.27"
 java = "25"
 node = "26"
 python = "3.14"
-# Rust has no major beyond 1.x, so this selector tracks every release the same
-# way "latest" would. It is written out to keep the intent visible.
+# No major past 1.x; equivalent to "latest", written out to show the intent.
 rust = "1"
-# uv is pre-1.0 and moves fast; a pin here would need bumping every few weeks,
-# so it relies on the release-age quarantine below instead.
+# Pre-1.0 and fast-moving; a pin would need bumping every few weeks.
 uv = "latest"
 
-# Ancillary CLI tools stay on rolling selectors. The quarantine is what guards
-# them: a fresh release is not eligible until it has been public long enough
-# for a compromised publish to surface and be pulled.
+# Rolling; the release-age quarantine below is what guards these.
 bat = "latest"
 eza = "latest"
 fd = "latest"

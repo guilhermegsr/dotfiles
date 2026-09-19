@@ -1,7 +1,4 @@
-# LANG only: it sets every LC_* category that is not explicitly overridden,
-# while LC_ALL would outrank them all and make a per-session or per-app locale
-# change impossible (LC_TIME for local date formats, LC_NUMERIC, a one-off
-# LC_ALL=C to get stable sort order).
+# LANG only: LC_ALL would outrank every category and block per-session overrides.
 export LANG="en_US.UTF-8"
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"

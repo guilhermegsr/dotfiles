@@ -2,8 +2,7 @@
 
 .PHONY: help install install-offline uninstall doctor backup restore lint check test update
 
-# Single source of truth for the shell files that lint checks. The sourced
-# fragments under scripts/install and scripts/uninstall carry a
+# Shared by ShellCheck and bash -n. The sourced fragments carry a
 # `# shellcheck shell=bash` directive so they can be analysed on their own.
 SHELL_SOURCES := install.sh uninstall.sh backup.sh restore.sh scripts/*.sh \
 	scripts/install/*.sh scripts/uninstall/*.sh tmux/copy.sh

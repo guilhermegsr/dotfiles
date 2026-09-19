@@ -187,12 +187,8 @@ stream_archive() {
     tar -czf - -C "$HOME" "${TARGETS[@]}"
 }
 
-# An encrypted backup is streamed straight into the encryptor, so the private
-# keys never touch the disk in the clear -- not even briefly, and not as a
-# leftover if the process is killed before the trap runs. Both tools read
-# their passphrase from the terminal, so the piped stdin does not disturb the
-# prompt or OpenSSL's confirmation step. The plain archive is written inside
-# the 0700 staging directory before it is moved into place.
+# Streamed into the encryptor: the private keys never reach the disk in the
+# clear, not even as a leftover if the process is killed before the trap runs.
 if [[ "$ENCRYPT" == true ]]; then
     info "Encrypting archive"
     case "$ENCRYPT_TOOL" in
