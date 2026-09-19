@@ -85,6 +85,13 @@ install_configs() {
     link_file "$DOTFILES_DIR/zsh/integrations" "$CONFIG_DIR/zsh/integrations"
     link_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 
+    # ZDOTDIR now points elsewhere, so a pre-existing ~/.zshrc is never read
+    # again. Say so instead of leaving it to be discovered.
+    if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]]; then
+        warn "$HOME/.zshrc is no longer read; the shell now loads $CONFIG_DIR/zsh/.zshrc"
+        warn "Move anything you still want into $CONFIG_DIR/zsh/local.zsh"
+    fi
+
     if [[ ! -f "$CONFIG_DIR/zsh/local.zsh" ]]; then
         cp "$DOTFILES_DIR/zsh/local.zsh.example" "$CONFIG_DIR/zsh/local.zsh"
         chmod 600 "$CONFIG_DIR/zsh/local.zsh"
@@ -110,7 +117,12 @@ install_ssh_config() {
     chmod 700 "$ssh_dir" "$ssh_dir/keys" "$ssh_dir/keys/personal" "$ssh_dir/keys/work" "$ssh_dir/keys/servers" "$ssh_dir/sockets" "$ssh_dir/conf.d"
 
     link_file "$DOTFILES_DIR/ssh/config" "$ssh_dir/config"
-    chmod 600 "$ssh_dir/config"
+    # chmod would follow the symlink and change the file inside the repository.
+    # OpenSSH only requires that the config not be writable by others, which a
+    # checkout already satisfies.
+    if [[ ! -L "$ssh_dir/config" ]]; then
+        chmod 600 "$ssh_dir/config"
+    fi
 
     if [[ ! -f "$ssh_dir/config.local" ]]; then
         touch "$ssh_dir/config.local"

@@ -58,15 +58,19 @@ unlink_file "$DOTFILES_DIR/zsh/integrations" "$CONFIG_DIR/zsh/integrations"
 restore_latest_backup "$CONFIG_DIR/zsh/integrations"
 
 # Pre-layout-change whole-dir symlink.
-unlink_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
-restore_latest_backup "$CONFIG_DIR/zsh"
+if [[ -L "$CONFIG_DIR/zsh" ]]; then
+    unlink_file "$DOTFILES_DIR/zsh" "$CONFIG_DIR/zsh"
+    restore_latest_backup "$CONFIG_DIR/zsh"
+fi
 
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
 # Pre-migration installs symlinked the global Git config into the repository.
-unlink_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
-restore_latest_backup "$CONFIG_DIR/git/config"
+if [[ -L "$CONFIG_DIR/git/config" ]]; then
+    unlink_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
+    restore_latest_backup "$CONFIG_DIR/git/config"
+fi
 
 # Machine-local file: drop our include, keep whatever else it holds.
 GIT_GLOBAL_CONFIG="$CONFIG_DIR/git/config"
@@ -89,8 +93,10 @@ if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
 fi
 unlink_file "$DOTFILES_DIR/git/ignore" "$CONFIG_DIR/git/ignore"
 restore_latest_backup "$CONFIG_DIR/git/ignore"
-unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
-restore_latest_backup "$CONFIG_DIR/git"
+if [[ -L "$CONFIG_DIR/git" ]]; then
+    unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"
+    restore_latest_backup "$CONFIG_DIR/git"
+fi
 
 unlink_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"
 restore_latest_backup "$CONFIG_DIR/mise/config.toml"
@@ -110,6 +116,13 @@ restore_latest_backup "$CONFIG_DIR/alacritty"
 
 unlink_file "$DOTFILES_DIR/ssh/config" "$HOME/.ssh/config"
 restore_latest_backup "$HOME/.ssh/config"
+
+# Directories the installer created and nothing else claimed. rmdir refuses a
+# directory that still holds anything, so local overrides and keys stay put.
+rmdir "$CONFIG_DIR/mise" "$CONFIG_DIR/git" "$CONFIG_DIR/zsh" \
+    "$HOME/.ssh/sockets" "$HOME/.ssh/conf.d" \
+    "$HOME/.ssh/keys/personal" "$HOME/.ssh/keys/work" "$HOME/.ssh/keys/servers" \
+    "$HOME/.ssh/keys" 2>/dev/null || true
 
 section "Fonts"
 FONT_DIR=""

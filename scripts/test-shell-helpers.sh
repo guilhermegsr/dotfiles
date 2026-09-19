@@ -163,6 +163,18 @@ pass "myip parses src from ip route"
 pass "extract allows a normal tar.gz"
 pass "extract refuses .. members"
 
+corrupt_dir="$WORKDIR/extract-corrupt"
+mkdir -p "$corrupt_dir"
+printf 'nao-e-gzip\n' >"$corrupt_dir/ruim.tar.gz"
+if HOME="$WORKDIR" zsh -c "
+source '$ROOT/zsh/config/functions.zsh'
+cd '$corrupt_dir' || exit 1
+extract ruim.tar.gz
+" >/dev/null 2>&1; then
+    fail "extract accepted an archive it could not list"
+fi
+pass "extract refuses an archive whose members cannot be listed"
+
 # Stubs reproduce each tool's real listing format (`7z -slt` prefixes
 # "Path = ", `unrar lb` prints bare names), so the parsing is covered too.
 STUBDIR="$WORKDIR/stub-bin"

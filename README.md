@@ -246,7 +246,7 @@ make lint             # Validate syntax and run ShellCheck analysis
 make uninstall        # Revert symlinks and restore original files
 ```
 
-`make doctor` is read-only. It reports broken links, unsafe SSH permissions, invalid Bash/Zsh/TOML/Git configuration, credential helpers that a `gh` upgrade would break, plugin drift, and missing runtime components. Warnings such as an intentionally uninstalled Starship do not fail the command; structural or permission errors do.
+`make doctor` changes nothing it manages (running `mise --version` does let Mise write its own bookkeeping). It reports broken links, unsafe SSH permissions, invalid Bash/Zsh/TOML/Git configuration, credential helpers that a `gh` upgrade would break, plugin drift, and missing runtime components. Warnings such as an intentionally uninstalled Starship do not fail the command; structural or permission errors do.
 
 For a normal removal, use `make uninstall`. To additionally remove clean plugin checkouts and the Mise bootstrap binary recorded as created by this repository, run `./uninstall.sh --purge`. Purge refuses unregistered plugins, changed Git origins, dirty checkouts, modified binaries, and unsafe ownership manifests. Mise-managed tool versions are deliberately preserved.
 

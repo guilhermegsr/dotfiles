@@ -33,15 +33,22 @@ _archive_member_unsafe() {
     return 1
 }
 
+# An empty listing means the archive could not be read, not that it is safe.
 _reject_unsafe_archive_members() {
     local member
+    local count=0
     while IFS= read -r member; do
         [[ -z "$member" ]] && continue
+        count=$((count + 1))
         if _archive_member_unsafe "$member"; then
-                echo "Error: refusing to extract unsafe path '$member'" >&2
+            echo "Error: refusing to extract unsafe path '$member'" >&2
             return 1
         fi
     done
+    if (( count == 0 )); then
+        echo "Error: could not list any member; refusing to extract" >&2
+        return 1
+    fi
 }
 
 _list_7z_members() {
