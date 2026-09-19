@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 
 BOLD='\033[1m'
 # shellcheck disable=SC2034
@@ -36,6 +36,57 @@ dotfiles_state_dir() {
 
 dotfiles_previous_shell_file() {
     printf '%s/previous-shell\n' "$(dotfiles_state_dir)"
+}
+
+# A directory of its own: the family is 96 files, and removal must never
+# have to guess which of them came from here.
+dotfiles_font_dir() {
+    printf '%s/JetBrainsMonoNerdFont\n' "$(dotfiles_legacy_font_dir "$1")"
+}
+
+dotfiles_legacy_font_dir() {
+    local data_dir="$1"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        printf '%s/Library/Fonts\n' "$HOME"
+    else
+        printf '%s/fonts\n' "$data_dir"
+    fi
+}
+
+# Entries are bare file names; a path separator means a manifest that was
+# tampered with. Reports through REMOVED_FONT_COUNT.
+remove_manifest_fonts() {
+    local font_dir="$1"
+    local manifest="$2"
+    local font_name font_path
+    REMOVED_FONT_COUNT=0
+    [[ -f "$manifest" && -d "$font_dir" ]] || return 0
+    while IFS= read -r font_name || [[ -n "$font_name" ]]; do
+        [[ -z "$font_name" ]] && continue
+        if [[ "$font_name" == */* || "$font_name" == "." || "$font_name" == ".." ]]; then
+            warn "Skipping invalid font manifest entry: $font_name"
+            continue
+        fi
+        font_path="$font_dir/$font_name"
+        if [[ -e "$font_path" || -L "$font_path" ]]; then
+            rm -f "$font_path"
+            REMOVED_FONT_COUNT=$((REMOVED_FONT_COUNT + 1))
+        fi
+    done <"$manifest"
+}
+
+# A run killed outright leaves a half-written copy of whatever it staged.
+# The age floor keeps this from deleting what a live run still owns.
+sweep_stale_staging() {
+    local parent="$1"
+    local pattern="$2"
+    local stale
+    [[ -d "$parent" ]] || return 0
+    while IFS= read -r stale; do
+        [[ -n "$stale" ]] || continue
+        rm -rf "$stale"
+        info "Removed a staging directory left by an interrupted run: $stale"
+    done < <(find "$parent" -maxdepth 1 -type d -name "$pattern" -mmin +1440 2>/dev/null)
 }
 
 backup_if_exists() {

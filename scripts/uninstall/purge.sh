@@ -108,5 +108,6 @@ purge_managed_assets() {
     section "Purge managed assets"
     purge_managed_plugins
     purge_managed_mise
+    sweep_stale_staging "$DATA_DIR/zsh/plugins" ".dotfiles-plugin.*"
     rmdir "$DATA_DIR/zsh/plugins" "$DATA_DIR/zsh" "$STATE_DIR" 2>/dev/null || true
 }

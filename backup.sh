@@ -18,10 +18,9 @@ CANDIDATES=(
 # openssl enc does not store iter; restore tries 600000 then 10000.
 OPENSSL_ITER=600000
 
-# Encrypting to a key beats encrypting to a passphrase for this archive: the
-# machine it restores onto is being rebuilt, and a passphrase remembered from
-# months ago is the likeliest thing to be missing. age cannot mix -R with -p,
-# so a spare key is how you keep a second way in; list it in this file.
+# The machine this restores onto is being rebuilt, so a passphrase from
+# months ago is the likeliest thing to be missing. age cannot mix -R with
+# -p, which makes a spare key the only second way in.
 DEFAULT_RECIPIENT="$HOME/.ssh/keys/personal/id_ed25519.pub"
 EXTRA_RECIPIENTS="${DOTFILES_AGE_RECIPIENTS:-$HOME/.ssh/age-recipients}"
 
@@ -111,6 +110,36 @@ for target in "${TARGETS[@]}"; do
     printf "    %b•%b %s\n" "$CYAN" "$NC" "$HOME/$target"
 done
 
+# tar would store the link and not the key behind it, which restore.sh then
+# rejects: an archive that looks fine and holds nothing.
+SYMLINKED_MEMBERS=()
+DANGLING_MEMBERS=()
+for item in "${TARGETS[@]}"; do
+    while IFS= read -r -d '' link; do
+        if [[ -e "$link" ]]; then
+            SYMLINKED_MEMBERS+=("${link#"$HOME/"}")
+        else
+            DANGLING_MEMBERS+=("${link#"$HOME/"}")
+        fi
+    done < <(find "$HOME/$item" -type l -print0 2>/dev/null)
+done
+
+if [[ ${#DANGLING_MEMBERS[@]} -gt 0 ]]; then
+    error "These are symbolic links that point nowhere:"
+    for member in "${DANGLING_MEMBERS[@]}"; do
+        printf "    %b•%b %s\n" "$RED" "$NC" "$HOME/$member"
+    done
+    error "An archive built from them would hold no key. Fix or remove them."
+    exit 1
+fi
+
+if [[ ${#SYMLINKED_MEMBERS[@]} -gt 0 ]]; then
+    warn "Following these symbolic links; the archive stores their contents:"
+    for member in "${SYMLINKED_MEMBERS[@]}"; do
+        printf "    %b•%b %s\n" "$YELLOW" "$NC" "$HOME/$member"
+    done
+fi
+
 section "Output"
 
 OPENSSL_PASS_FILE="${DOTFILES_OPENSSL_PASS_FILE:-}"
@@ -130,8 +159,7 @@ collect_age_recipients() {
     [[ ${#AGE_RECIPIENT_ARGS[@]} -gt 0 ]]
 }
 
-# Encrypting to a key needs no prompt and no secret to type, so it is also
-# what makes an unattended backup possible.
+# No prompt and no secret to type, which is what allows an unattended backup.
 KEY_ENCRYPTION=false
 if [[ "$PASSPHRASE" == false && -z "$OPENSSL_PASS_FILE" ]] \
     && command -v age >/dev/null 2>&1 && collect_age_recipients; then
@@ -227,13 +255,7 @@ fi
 
 OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
 
-# A run killed outright cannot clean up after itself, and what it leaves is a
-# partial archive of the secrets. Sweep those before starting a new one.
-while IFS= read -r stale_stage; do
-    [[ -n "$stale_stage" ]] || continue
-    rm -rf "$stale_stage"
-    info "Removed a staging directory left by an interrupted backup: $stale_stage"
-done < <(find "$OUTPUT_DIR" -maxdepth 1 -type d -name '.dotfiles-backup.*' -mmin +1440 2>/dev/null)
+sweep_stale_staging "$OUTPUT_DIR" ".dotfiles-backup.*"
 
 OUTPUT_STAGE_DIR="$(mktemp -d "$OUTPUT_DIR/.dotfiles-backup.XXXXXX")"
 OUTPUT_TEMP="$OUTPUT_STAGE_DIR/archive"
@@ -247,7 +269,7 @@ cleanup_backup() {
 trap cleanup_backup EXIT
 
 stream_archive() {
-    tar -czf - -C "$HOME" "${TARGETS[@]}"
+    tar -czhf - -C "$HOME" "${TARGETS[@]}"
 }
 
 # Streamed into the encryptor: the private keys never reach the disk in the
@@ -288,8 +310,7 @@ fi
 
 chmod 600 "$OUTPUT_TEMP"
 
-# Check again immediately before the atomic rename in case the path appeared
-# while the archive was being created.
+# The path may have appeared while the archive was being written.
 if [[ "$FORCE" != true && ( -e "$OUTPUT_FILE" || -L "$OUTPUT_FILE" ) ]]; then
     error "Output file appeared while creating the backup: $OUTPUT_FILE"
     error "The new archive was not installed. Pass --force to replace it."

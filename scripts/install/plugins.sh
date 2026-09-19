@@ -51,11 +51,14 @@ install_plugin_at_sha() {
             return 0
         fi
         info "Updating $name to ${sha:0:12}"
-        git -C "$dir" fetch --depth 1 origin "$sha"
-        git -C "$dir" checkout --detach "$sha"
+        if ! git -C "$dir" fetch --depth 1 origin "$sha" \
+            || ! git -C "$dir" checkout --detach "$sha"; then
+            error "Could not update $name to ${sha:0:12}"
+            return 1
+        fi
     else
         local clone_dir
-        clone_dir="$(mktemp -d "$PLUGIN_DIR/.${name}.XXXXXX")"
+        clone_dir="$(mktemp -d "$PLUGIN_DIR/.dotfiles-plugin.${name}.XXXXXX")"
         info "Cloning $name at ${sha:0:12}"
         if git -C "$clone_dir" init --quiet \
             && git -C "$clone_dir" remote add origin "$url" \
@@ -91,10 +94,17 @@ install_plugins() {
     if [[ "$OFFLINE" == true ]]; then
         info "Skipping Zsh plugin downloads in offline mode"
     elif command -v git >/dev/null 2>&1; then
+        sweep_stale_staging "$PLUGIN_DIR" ".dotfiles-plugin.*"
+        # An unreachable plugin costs autosuggestions, not the rest of the run.
+        local failed_plugins=0
         while read -r plugin_name plugin_url plugin_sha _plugin_branch; do
             [[ -z "${plugin_name:-}" || "$plugin_name" == \#* ]] && continue
-            install_plugin_at_sha "$plugin_name" "$plugin_url" "$plugin_sha"
+            install_plugin_at_sha "$plugin_name" "$plugin_url" "$plugin_sha" \
+                || failed_plugins=$((failed_plugins + 1))
         done <"$DOTFILES_DIR/locks/zsh-plugins.lock"
+        if [[ $failed_plugins -gt 0 ]]; then
+            warn "$failed_plugins plugin(s) could not be installed; run ./install.sh again to retry"
+        fi
     else
         warn "git was not found; skipping Zsh plugins"
     fi

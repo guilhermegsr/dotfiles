@@ -231,12 +231,17 @@ if [[ -f "$plugin_manifest" ]]; then
     doctor_ok "Plugin ownership manifest exists"
 fi
 
-font_dir="$DATA_DIR/fonts"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    font_dir="$HOME/Library/Fonts"
-fi
+font_dir="$(dotfiles_font_dir "$DATA_DIR")"
+legacy_font_dir="$(dotfiles_legacy_font_dir "$DATA_DIR")"
+font_tag_marker="$STATE_DIR/installed-font-tag"
 if find "$font_dir" -maxdepth 1 -iname '*JetBrainsMono*Nerd*' 2>/dev/null | grep -q .; then
-    doctor_ok "JetBrainsMono Nerd Font is installed"
+    if [[ -f "$font_tag_marker" ]]; then
+        doctor_ok "JetBrainsMono Nerd Font $(<"$font_tag_marker") is installed"
+    else
+        doctor_warn "JetBrainsMono Nerd Font has no recorded version; run ./install.sh to pin it"
+    fi
+elif find "$legacy_font_dir" -maxdepth 1 -iname '*JetBrainsMono*Nerd*' 2>/dev/null | grep -q .; then
+    doctor_warn "JetBrainsMono Nerd Font sits loose in $legacy_font_dir; run ./install.sh to move it into $font_dir"
 else
     doctor_warn "JetBrainsMono Nerd Font was not found"
 fi

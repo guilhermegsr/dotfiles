@@ -14,6 +14,9 @@ export NODE_REPL_HISTORY="$XDG_STATE_HOME/node_repl_history"
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
 export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
 
+# Without this, re-sourcing or nesting a shell prepends these three again.
+typeset -U path PATH
+
 export PATH="$HOME/.local/bin:$CARGO_HOME/bin:$GOPATH/bin:$PATH"
 
 if command -v nvim >/dev/null 2>&1; then

@@ -1,20 +1,23 @@
 # shellcheck shell=bash
 install_fonts() {
     section "Fonts"
-    local font_dir
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        font_dir="$HOME/Library/Fonts"
-    else
-        font_dir="$DATA_DIR/fonts"
-    fi
-    local font_manifest="$STATE_DIR/installed-fonts"
+    local font_dir legacy_font_dir font_manifest font_tag_marker installed_tag=""
+    font_dir="$(dotfiles_font_dir "$DATA_DIR")"
+    legacy_font_dir="$(dotfiles_legacy_font_dir "$DATA_DIR")"
+    font_manifest="$STATE_DIR/installed-fonts"
+    font_tag_marker="$STATE_DIR/installed-font-tag"
 
     if [[ "$OFFLINE" == true ]]; then
         info "Skipping Nerd Font download in offline mode"
         return 0
     fi
-    if find "$font_dir" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" 2>/dev/null | grep -q .; then
-        info "JetBrainsMono Nerd Font already installed"
+
+    # Presence alone never upgrades: without the tag, a bump in the lock
+    # would never reach a machine that already has the font.
+    [[ -f "$font_tag_marker" ]] && installed_tag="$(<"$font_tag_marker")"
+    if [[ "$installed_tag" == "$LOCK_FONT_TAG" ]] \
+        && find "$font_dir" -maxdepth 1 -iname "*JetBrainsMono*Nerd*" 2>/dev/null | grep -q .; then
+        info "JetBrainsMono Nerd Font ${LOCK_FONT_TAG} is already installed"
         return 0
     fi
     if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
@@ -23,7 +26,6 @@ install_fonts() {
     fi
 
     info "Downloading JetBrainsMono Nerd Font ${LOCK_FONT_TAG}"
-    mkdir -p "$font_dir"
     local font_temp font_archive font_url
     font_temp="$(mktemp -d)"
     font_archive="$(mktemp)"
@@ -46,19 +48,26 @@ install_fonts() {
             warn "The font archive contained no TTF or OTF files; skipping"
             rm -f "$manifest_temp"
         else
+            # Nothing is removed until the download verifies. Installs older
+            # than the dedicated directory left the files loose beside it.
+            remove_manifest_fonts "$font_dir" "$font_manifest"
+            remove_manifest_fonts "$legacy_font_dir" "$font_manifest"
             chmod 600 "$manifest_temp"
             mv "$manifest_temp" "$font_manifest"
+            mkdir -p "$font_dir"
             while IFS= read -r font_name; do
                 cp "$font_temp/$font_name" "$font_dir/$font_name"
             done <"$font_manifest"
+            printf '%s\n' "$LOCK_FONT_TAG" >"$font_tag_marker"
+            chmod 600 "$font_tag_marker"
         fi
         rm -rf "$font_temp" "$font_archive"
 
         if [[ $installed_font_count -gt 0 ]] && command -v fc-cache >/dev/null 2>&1; then
-            fc-cache -f "$font_dir" >/dev/null 2>&1 || true
+            fc-cache -f "$legacy_font_dir" >/dev/null 2>&1 || true
         fi
         if [[ $installed_font_count -gt 0 ]]; then
-            success "Installed JetBrainsMono Nerd Font ${LOCK_FONT_TAG}"
+            success "Installed JetBrainsMono Nerd Font ${LOCK_FONT_TAG} to $font_dir"
         fi
     else
         warn "Could not download or verify the font; skipping"

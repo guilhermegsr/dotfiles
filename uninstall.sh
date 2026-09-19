@@ -117,42 +117,33 @@ restore_latest_backup "$CONFIG_DIR/alacritty"
 unlink_file "$DOTFILES_DIR/ssh/config" "$HOME/.ssh/config"
 restore_latest_backup "$HOME/.ssh/config"
 
-# Directories the installer created and nothing else claimed. rmdir refuses a
-# directory that still holds anything, so local overrides and keys stay put.
+# rmdir refuses a directory that still holds anything, so overrides and
+# keys stay put.
 rmdir "$CONFIG_DIR/mise" "$CONFIG_DIR/git" "$CONFIG_DIR/zsh" \
     "$HOME/.ssh/sockets" "$HOME/.ssh/conf.d" \
     "$HOME/.ssh/keys/personal" "$HOME/.ssh/keys/work" "$HOME/.ssh/keys/servers" \
     "$HOME/.ssh/keys" 2>/dev/null || true
 
 section "Fonts"
-FONT_DIR=""
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    FONT_DIR="$HOME/Library/Fonts"
-else
-    FONT_DIR="$DATA_DIR/fonts"
-fi
+FONT_DIR="$(dotfiles_font_dir "$DATA_DIR")"
+LEGACY_FONT_DIR="$(dotfiles_legacy_font_dir "$DATA_DIR")"
 FONT_MANIFEST="$STATE_DIR/installed-fonts"
+FONT_TAG_MARKER="$STATE_DIR/installed-font-tag"
 
 if [[ -f "$FONT_MANIFEST" ]]; then
-    removed_font_count=0
-    while IFS= read -r font_name || [[ -n "$font_name" ]]; do
-        [[ -z "$font_name" ]] && continue
-        if [[ "$font_name" == */* || "$font_name" == "." || "$font_name" == ".." ]]; then
-            warn "Skipping invalid font manifest entry: $font_name"
-            continue
-        fi
-        font_path="$FONT_DIR/$font_name"
-        if [[ -e "$font_path" || -L "$font_path" ]]; then
-            rm -f "$font_path"
-            removed_font_count=$((removed_font_count + 1))
-        fi
-    done <"$FONT_MANIFEST"
-    rm -f "$FONT_MANIFEST"
+    # Installs older than the dedicated directory left the files loose,
+    # recorded by this same manifest.
+    remove_manifest_fonts "$FONT_DIR" "$FONT_MANIFEST"
+    removed_font_count="$REMOVED_FONT_COUNT"
+    remove_manifest_fonts "$LEGACY_FONT_DIR" "$FONT_MANIFEST"
+    removed_font_count=$((removed_font_count + REMOVED_FONT_COUNT))
+    rm -f "$FONT_MANIFEST" "$FONT_TAG_MARKER"
+    rmdir "$FONT_DIR" 2>/dev/null || true
 
     if [[ $removed_font_count -gt 0 ]]; then
-        info "Removed $removed_font_count dotfiles-managed font files from $FONT_DIR"
+        info "Removed $removed_font_count dotfiles-managed font files"
         if command -v fc-cache >/dev/null 2>&1; then
-            fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
+            fc-cache -f "$LEGACY_FONT_DIR" >/dev/null 2>&1 || true
         fi
         success "Removed dotfiles-managed JetBrainsMono Nerd Font files"
     else

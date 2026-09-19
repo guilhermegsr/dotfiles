@@ -12,7 +12,10 @@ offer_backup_restore() {
         if [[ -n "$backup_archive_path" ]]; then
             expanded_backup="${backup_archive_path/#\~/$HOME}"
             if [[ -f "$expanded_backup" ]]; then
-                "$DOTFILES_DIR/restore.sh" "$expanded_backup"
+                # A bad archive skips the restore, it does not end the install.
+                if ! "$DOTFILES_DIR/restore.sh" "$expanded_backup"; then
+                    warn "Restore failed; continuing with the installation"
+                fi
             else
                 warn "Backup archive not found: $backup_archive_path"
             fi

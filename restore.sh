@@ -278,6 +278,23 @@ for member in "${VALID_MEMBERS[@]}"; do
     printf "    %b•%b %s\n" "$CYAN" "$NC" "$member"
 done
 
+# Restoring onto a machine that already holds secrets is the normal case:
+# name what will be replaced before asking, not after.
+CONFLICTING_MEMBERS=()
+for member in "${VALID_MEMBERS[@]}"; do
+    [[ "$member" == */ ]] && continue
+    if [[ -f "$HOME/${member#./}" ]]; then
+        CONFLICTING_MEMBERS+=("${member#./}")
+    fi
+done
+
+if [[ ${#CONFLICTING_MEMBERS[@]} -gt 0 ]]; then
+    warn "These already exist and will be replaced; each is kept as a .bak copy:"
+    for member in "${CONFLICTING_MEMBERS[@]}"; do
+        printf "    %b•%b %s\n" "$YELLOW" "$NC" "$member"
+    done
+fi
+
 if [[ "$ASSUME_YES" != true ]]; then
     if [[ ! -t 0 ]]; then
         error "Non-interactive restore requires --yes."
@@ -326,6 +343,16 @@ while IFS= read -r -d '' staged; do
         error "Refusing to restore through an existing symlink: ~/$local_rel"
         error "Move it aside, then run the restore again."
         exit 1
+    fi
+done < <(find "$STAGE_DIR" -print0)
+
+# cp overwrites in place, and a private key is the one thing here that
+# cannot be regenerated.
+while IFS= read -r -d '' staged; do
+    [[ -f "$staged" ]] || continue
+    local_rel="${staged#"$STAGE_DIR"/}"
+    if [[ -f "$HOME/$local_rel" ]]; then
+        backup_if_exists "$HOME/$local_rel"
     fi
 done < <(find "$STAGE_DIR" -print0)
 

@@ -36,8 +36,7 @@ grep -q '^keep-existing$' "$TESTHOME/existing.tar.gz" || fail "existing backup o
 tar -tzf "$TESTHOME/existing.tar.gz" >/dev/null || fail "backup --force did not write an archive"
 pass "backup refuses overwrite unless --force is passed"
 
-# A run killed outright leaves its staging directory behind; the next one
-# must clear it instead of letting partial archives of the secrets pile up.
+# Partial archives of the secrets must not pile up unnoticed.
 stale_stage="$TESTHOME/.dotfiles-backup.stale1"
 fresh_stage="$TESTHOME/.dotfiles-backup.fresh1"
 mkdir -p "$stale_stage" "$fresh_stage"
@@ -108,6 +107,45 @@ if "$ROOT/restore.sh" "$TESTHOME/good.tar.gz" </dev/null >/dev/null 2>&1; then
 fi
 pass "restore refuses non-interactive without --yes"
 
+# The machine being restored onto may be the last place that key exists.
+CLOBBERHOME="$(mktemp -d)"
+mkdir -p "$CLOBBERHOME/.ssh/keys/personal"
+printf '%s\n' existing-key >"$CLOBBERHOME/.ssh/keys/personal/id_ed25519"
+HOME="$CLOBBERHOME" "$ROOT/restore.sh" --yes "$TESTHOME/good.tar.gz" >/dev/null
+grep -qx secret-key "$CLOBBERHOME/.ssh/keys/personal/id_ed25519" \
+    || fail "restore did not write the archived key"
+kept="$(find "$CLOBBERHOME/.ssh/keys/personal" -name 'id_ed25519.bak.*' | head -n 1)"
+[[ -n "$kept" ]] || fail "restore replaced an existing key without keeping a copy"
+grep -qx existing-key "$kept" || fail "the copy restore kept is not the previous key"
+rm -rf "$CLOBBERHOME"
+pass "restore keeps a copy of every secret it replaces"
+
+# tar would store the link, not the key: an archive that restores nothing.
+LINKHOME="$(mktemp -d)"
+mkdir -p "$LINKHOME/.ssh/keys/personal" "$LINKHOME/vault"
+printf '%s\n' vault-key >"$LINKHOME/vault/id_ed25519"
+ln -s "$LINKHOME/vault/id_ed25519" "$LINKHOME/.ssh/keys/personal/id_ed25519"
+HOME="$LINKHOME" "$ROOT/backup.sh" --plain "$LINKHOME/linked.tar.gz" >/dev/null
+if LC_ALL=C tar -tvzf "$LINKHOME/linked.tar.gz" | grep -q '^l'; then
+    fail "backup stored a symbolic link instead of the key behind it"
+fi
+LINKRESTORE="$(mktemp -d)"
+HOME="$LINKRESTORE" "$ROOT/restore.sh" --yes "$LINKHOME/linked.tar.gz" >/dev/null
+grep -qx vault-key "$LINKRESTORE/.ssh/keys/personal/id_ed25519" \
+    || fail "restore did not recover the key that lived behind a symlink"
+rm -rf "$LINKHOME" "$LINKRESTORE"
+pass "backup follows a symlinked key so the archive can be restored"
+
+DANGLEHOME="$(mktemp -d)"
+mkdir -p "$DANGLEHOME/.ssh/keys/personal"
+ln -s "$DANGLEHOME/vault/missing" "$DANGLEHOME/.ssh/keys/personal/id_ed25519"
+if HOME="$DANGLEHOME" "$ROOT/backup.sh" --plain "$DANGLEHOME/dangling.tar.gz" >/dev/null 2>&1; then
+    fail "backup wrote an archive built from a dangling symlink"
+fi
+[[ ! -e "$DANGLEHOME/dangling.tar.gz" ]] || fail "backup left an archive behind after refusing"
+rm -rf "$DANGLEHOME"
+pass "backup refuses a key symlink that points nowhere"
+
 if command -v openssl >/dev/null 2>&1; then
     printf 'ci-test-passphrase\n' >"$TESTHOME/passfile"
     chmod 600 "$TESTHOME/passfile"
@@ -136,7 +174,6 @@ if command -v age >/dev/null 2>&1; then
     [[ -f "$TESTHOME/keyed.tar.gz.age" ]] || fail "keyed backup produced no .age archive"
     grep -q "id_ed25519.pub" "$age_log" || fail "backup did not report the recipient"
 
-    # The personal key restores without any passphrase at all.
     AGEHOME="$(mktemp -d)"
     mkdir -p "$AGEHOME/.ssh/keys/personal"
     cp "$HOME/.ssh/keys/personal/id_ed25519" "$AGEHOME/.ssh/keys/personal/id_ed25519"
@@ -153,7 +190,6 @@ if command -v age >/dev/null 2>&1; then
         || fail "restore with the spare recipient failed"
     [[ -f "$SPAREHOME/.config/zsh/local.zsh" ]] || fail "spare restore wrote nothing"
 
-    # A key that is not a recipient must not open it.
     ssh-keygen -q -t ed25519 -N '' -f "$TESTHOME/outsider" >/dev/null 2>&1
     OUTHOME="$(mktemp -d)"
     if HOME="$OUTHOME" DOTFILES_AGE_IDENTITY="$TESTHOME/outsider" \

@@ -28,9 +28,8 @@ done <"$ROOT/locks/zsh-plugins.lock"
 [[ "$n" -ge 1 ]] || fail "no plugins parsed from zsh-plugins.lock"
 pass "parsed $n plugin lock entries"
 
-# The checksum listing must be read to the end: stopping at the first match
-# leaves curl writing into a closed pipe, which pipefail turns into a failed
-# `make update` whenever the file is larger than the pipe buffer.
+# Stopping at the first match leaves curl writing into a closed pipe, which
+# pipefail turns into a failed `make update` on any large listing.
 sums_file="$WORKDIR/SHA-256.txt"
 {
     printf '%064d  wanted.tar.xz\n' 1
@@ -65,7 +64,6 @@ first_ui_integration_line="$(grep -n 'source .*integrations/\(fzf\|zoxide\|stars
 [[ -n "$local_line" && -n "$first_ui_integration_line" && "$local_line" -lt "$first_ui_integration_line" ]] || fail "local overrides load after an integration"
 pass "local overrides load before shell integrations"
 
-# Pinned by example: the pattern is too easy to break by eye.
 history_ignore_verdict() {
     XDG_STATE_HOME="$WORKDIR/history-state" zsh -c "
         source '$ROOT/zsh/config/history.zsh'
@@ -108,8 +106,6 @@ if "$ROOT/uninstall.sh" --invalid-option >/dev/null 2>&1; then
 fi
 pass "install and uninstall validate command-line options"
 
-# The package layer is the one OS-specific piece: the dispatcher is shared and
-# only the names differ, so both halves are checked here.
 # shellcheck source=scripts/install/packages.sh
 source "$ROOT/scripts/install/packages.sh"
 
@@ -205,8 +201,8 @@ extract ruim.tar.gz
 fi
 pass "extract refuses an archive whose members cannot be listed"
 
-# Stubs reproduce each tool's real listing format (`7z -slt` prefixes
-# "Path = ", `unrar lb` prints bare names), so the parsing is covered too.
+# The stubs reproduce each tool's real listing format, so the parsing of it
+# is covered too.
 STUBDIR="$WORKDIR/stub-bin"
 mkdir -p "$STUBDIR"
 write_stub() {
@@ -287,7 +283,68 @@ imported_mode="$(stat -c '%a' "$IMPORTHOME/.ssh/keys/servers/id_ed25519.pub")"
 [[ "$imported_mode" == "644" ]] || fail "imported public key mode is $imported_mode, expected 644"
 pass "ssh-import handles a public key without creating .pub.pub"
 
-# Offline installation and uninstall shell restore
+# `exec zsh`, a nested shell and a re-source all run this file again.
+mkdir -p "$WORKDIR/path-home"
+path_counts="$(HOME="$WORKDIR/path-home" zsh -c "
+    source '$ROOT/zsh/config/exports.zsh'
+    first=\${#path}
+    source '$ROOT/zsh/config/exports.zsh'
+    source '$ROOT/zsh/config/exports.zsh'
+    echo \$first \${#path}
+")"
+[[ "${path_counts%% *}" == "${path_counts##* }" ]] \
+    || fail "re-sourcing exports.zsh grew PATH from ${path_counts%% *} to ${path_counts##* } entries"
+pass "re-sourcing exports.zsh keeps PATH the same size"
+
+# install_plugins against a lock of our own, so the real one stays untouched.
+run_install_plugins() {
+    local fixture="$1" log="$2"
+    GIT_TERMINAL_PROMPT=0 bash -c '
+        set -euo pipefail
+        source "$1/scripts/lib.sh"
+        source "$1/scripts/install/plugins.sh"
+        OFFLINE=false
+        DOTFILES_DIR="$2"
+        DATA_DIR="$2/data"
+        STATE_DIR="$2/state"
+        install_plugins
+    ' _ "$ROOT" "$fixture" >"$log" 2>&1
+}
+
+# A flaky network must not take the rest of the installation down with it.
+unreachable="$WORKDIR/plugin-unreachable"
+mkdir -p "$unreachable/locks" "$unreachable/data/zsh/plugins" "$unreachable/state"
+printf '%s %s %s %s\n' unreachable https://dotfiles.invalid/x \
+    0000000000000000000000000000000000000000 master >"$unreachable/locks/zsh-plugins.lock"
+unreachable_log="$WORKDIR/plugin-unreachable.log"
+if ! run_install_plugins "$unreachable" "$unreachable_log"; then
+    cat "$unreachable_log" >&2
+    fail "an unreachable plugin aborted the plugin step"
+fi
+grep -q "could not be installed" "$unreachable_log" \
+    || { cat "$unreachable_log" >&2; fail "the plugin step did not report the failure"; }
+pass "an unreachable plugin warns instead of aborting the install"
+
+# A clone killed halfway leaves its staging directory behind.
+sweep="$WORKDIR/plugin-sweep"
+mkdir -p "$sweep/locks" "$sweep/data/zsh/plugins" "$sweep/state"
+: >"$sweep/locks/zsh-plugins.lock"
+stale_clone="$sweep/data/zsh/plugins/.dotfiles-plugin.zsh-stale.AbCdEf"
+fresh_clone="$sweep/data/zsh/plugins/.dotfiles-plugin.zsh-fresh.GhIjKl"
+mkdir -p "$stale_clone" "$fresh_clone"
+touch -d '2 days ago' "$stale_clone"
+run_install_plugins "$sweep" "$WORKDIR/plugin-sweep.log" \
+    || fail "the plugin step failed on an empty lock"
+[[ ! -e "$stale_clone" ]] || fail "install kept a staging directory from an interrupted clone"
+[[ -d "$fresh_clone" ]] || fail "install removed a staging directory that may still be in use"
+pass "install sweeps staging directories left by an interrupted clone"
+
+# A restore that refuses the archive must not end the installation either.
+grep -qE 'if ! "[^"]+/restore\.sh"' "$ROOT/scripts/install/onboarding.sh" \
+    || fail "onboarding runs restore.sh unguarded, so a refused archive aborts the install"
+pass "a refused restore is guarded in the onboarding step"
+
+# Everything below runs against a freshly installed home.
 TESTHOME="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR" "$TESTHOME"' EXIT
 export HOME="$TESTHOME"
@@ -395,10 +452,14 @@ chmod 755 "$HOME/.local/bin/mise"
 managed_mise_sha="$(sha256_file "$HOME/.local/bin/mise")"
 printf 'path=%s\nversion=1.2.3\nsha256=%s\n' "$HOME/.local/bin/mise" "$managed_mise_sha" >"$XDG_STATE_HOME/dotfiles/managed-mise"
 
-mkdir -p "$XDG_DATA_HOME/fonts"
+# Both layouts at once: loose in the font directory, and in its own.
+managed_font_dir="$XDG_DATA_HOME/fonts/JetBrainsMonoNerdFont"
+mkdir -p "$XDG_DATA_HOME/fonts" "$managed_font_dir"
 printf '%s\n' preexisting >"$XDG_DATA_HOME/fonts/JetBrainsMonoNerd-Preexisting.ttf"
 printf '%s\n' managed >"$XDG_DATA_HOME/fonts/JetBrainsMonoNerd-Managed.ttf"
+printf '%s\n' managed >"$managed_font_dir/JetBrainsMonoNerd-Managed.ttf"
 printf '%s\n' JetBrainsMonoNerd-Managed.ttf >"$XDG_STATE_HOME/dotfiles/installed-fonts"
+printf '%s\n' v0.0.0 >"$XDG_STATE_HOME/dotfiles/installed-font-tag"
 log="$TESTHOME/uninstall.log"
 if ! DOTFILES_SKIP_CHSH=1 "$ROOT/uninstall.sh" --purge >"$log" 2>&1; then
     cat "$log" >&2
@@ -427,7 +488,9 @@ grep -q '^dirty-test' "$XDG_STATE_HOME/dotfiles/installed-plugins" || fail "purg
 pass "purge removes only recorded plugins and Mise artifacts"
 [[ -f "$XDG_DATA_HOME/fonts/JetBrainsMonoNerd-Preexisting.ttf" ]] || fail "uninstall removed a preexisting font"
 [[ ! -e "$XDG_DATA_HOME/fonts/JetBrainsMonoNerd-Managed.ttf" ]] || fail "uninstall kept a managed font"
-pass "uninstall removes only fonts recorded in its manifest"
+[[ ! -e "$managed_font_dir" ]] || fail "uninstall kept the managed font directory"
+[[ ! -e "$XDG_STATE_HOME/dotfiles/installed-font-tag" ]] || fail "uninstall kept the recorded font version"
+pass "uninstall removes only fonts recorded in its manifest, in either layout"
 
 echo
 echo "ALL SHELL HELPER TESTS PASSED"
