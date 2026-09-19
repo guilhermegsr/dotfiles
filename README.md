@@ -117,6 +117,7 @@ All keys are strictly structured under `~/.ssh/keys/` and auto-routed via `~/.ss
 * **Archives**:
   ```bash
   extract package.tar.gz # Universal extraction (.tar.*, .zip, .7z, .rar, .tar.zst)
+                         # Members are checked for path traversal before anything is written
   ```
 
 * **System & Network**:
@@ -161,6 +162,7 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
   make backup
   # Archives ~/.ssh/keys, ~/.ssh/config.local, ~/.config/git/config.local, and ~/.config/zsh/local.zsh
   # Encryption is on by default (age if available, otherwise OpenSSL AES-256-CBC + PBKDF2 600000)
+  # The tarball is streamed into the encryptor, so private keys never hit the disk in the clear
   # Unencrypted archives are opt-in and contain private keys:
   ./backup.sh --plain ~/dotfiles-backup.tar.gz
   # Existing destinations are protected; replacement must be explicit:
@@ -172,6 +174,7 @@ Archive and migrate all machine-specific secrets, Git identities, and SSH keys s
   make restore
   # Lists archive members, restores only allowlisted paths, and asks for confirmation
   # Rejects '..', absolute paths, symlinks, special files, and unexpected prefixes
+  # Also refuses a destination that is already a symlink, which cp would write through
   # Decrypts .age / .enc if needed, then enforces POSIX permissions (0700/0600/0644)
   ```
 

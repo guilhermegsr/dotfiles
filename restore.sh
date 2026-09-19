@@ -26,7 +26,8 @@ Usage: restore.sh [--yes] [backup_archive]
   -h, --help Show this help
 
 Only allowlisted paths are restored. Members with '..', absolute paths,
-symbolic links, or special file types are rejected. Set DOTFILES_OPENSSL_PASS_FILE to a
+symbolic links, or special file types are rejected, and so is any destination
+that is already a symbolic link. Set DOTFILES_OPENSSL_PASS_FILE to a
 passphrase file for non-interactive OpenSSL decryption.
 EOF
 }
@@ -294,6 +295,14 @@ while IFS= read -r -d '' staged; do
     fi
     if [[ ! -d "$staged" && ! -f "$staged" ]]; then
         error "Refusing to restore non-regular member: $local_rel"
+        exit 1
+    fi
+    # The archive is symlink-free by now, but `cp` writes *through* a symlink
+    # already sitting at the destination, which would land the restored file
+    # wherever that link points.
+    if [[ -L "$HOME/$local_rel" ]]; then
+        error "Refusing to restore through an existing symlink: ~/$local_rel"
+        error "Move it aside, then run the restore again."
         exit 1
     fi
 done < <(find "$STAGE_DIR" -print0)

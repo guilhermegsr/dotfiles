@@ -44,6 +44,10 @@ _reject_unsafe_archive_members() {
     done
 }
 
+_list_7z_members() {
+    7z l -ba -slt -- "$1" | awk '/^Path = / { sub(/^Path = /, ""); print }'
+}
+
 _list_zip_members() {
     if command -v zipinfo >/dev/null 2>&1; then
         zipinfo -1 "$1"
@@ -93,8 +97,22 @@ extract() {
         *.bz2) bunzip2 "$1" ;;
         *.gz)  gunzip "$1" ;;
         *.Z)   uncompress "$1" ;;
-        *.rar) unrar x "$1" ;;
-        *.7z)  7z x "$1" ;;
+        *.rar)
+            if ! command -v unrar >/dev/null 2>&1; then
+                echo "Error: unrar is required to extract '$1'" >&2
+                return 1
+            fi
+            unrar lb "$1" | _reject_unsafe_archive_members || return 1
+            unrar x "$1"
+            ;;
+        *.7z)
+            if ! command -v 7z >/dev/null 2>&1; then
+                echo "Error: 7z is required to extract '$1'" >&2
+                return 1
+            fi
+            _list_7z_members "$1" | _reject_unsafe_archive_members || return 1
+            7z x "$1"
+            ;;
         *)
             echo "Error: unsupported archive format: $1" >&2
             return 1

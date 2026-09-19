@@ -78,6 +78,19 @@ if "$ROOT/restore.sh" --yes "$TESTHOME/fifo.tar.gz" >/dev/null 2>&1; then
 fi
 pass "restore rejected non-regular member"
 
+# `cp` writes through a symlink sitting at the destination, so a link planted
+# in HOME could redirect a restored file anywhere.
+SYMHOME="$(mktemp -d)"
+mkdir -p "$SYMHOME/.config/git" "$SYMHOME/elsewhere"
+printf '%s\n' original >"$SYMHOME/elsewhere/target"
+ln -s "$SYMHOME/elsewhere/target" "$SYMHOME/.config/git/config.local"
+if HOME="$SYMHOME" "$ROOT/restore.sh" --yes "$TESTHOME/good.tar.gz" >/dev/null 2>&1; then
+    fail "restore wrote through a symlink in HOME"
+fi
+grep -qx original "$SYMHOME/elsewhere/target" || fail "restore modified a symlink target"
+rm -rf "$SYMHOME"
+pass "restore refuses to write through a symlink already in HOME"
+
 if "$ROOT/restore.sh" "$TESTHOME/good.tar.gz" </dev/null >/dev/null 2>&1; then
     fail "restore without TTY/--yes succeeded"
 fi

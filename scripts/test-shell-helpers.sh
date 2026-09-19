@@ -120,6 +120,52 @@ pass "myip parses src from ip route"
 pass "extract allows a normal tar.gz"
 pass "extract refuses .. members"
 
+# unrar and 7z preserve paths and have a history of traversal bugs, so their
+# listings go through the same member check as tar and zip. Stubs keep the test
+# hermetic and cover both tools whether or not they are installed; each one
+# reproduces its tool's real listing format (`7z -slt` prefixes "Path = ",
+# `unrar lb` prints bare names), so the parsing is exercised too.
+STUBDIR="$WORKDIR/stub-bin"
+mkdir -p "$STUBDIR"
+write_stub() {
+    local tool="$1" list_flag="$2" line="$3"
+    cat >"$STUBDIR/$tool" <<STUB
+#!/usr/bin/env bash
+case "\$1" in
+    $list_flag) printf '%s\\n' '$line' ;;
+    x) printf 'extracted\\n' >EXTRACTED ;;
+esac
+STUB
+    chmod 755 "$STUBDIR/$tool"
+}
+
+run_extract() {
+    local dir="$1" archive="$2"
+    PATH="$STUBDIR:$PATH" zsh -c "
+        source '$ROOT/zsh/config/functions.zsh'
+        cd '$dir' || exit 1
+        extract '$archive'
+    " >/dev/null 2>&1
+}
+
+for spec in "7z|l|evil.7z|Path = " "unrar|lb|evil.rar|"; do
+    IFS='|' read -r tool list_flag archive prefix <<<"$spec"
+    dir="$WORKDIR/extract-$tool"
+    mkdir -p "$dir"
+    : >"$dir/$archive"
+
+    write_stub "$tool" "$list_flag" "${prefix}../escape.txt"
+    if run_extract "$dir" "$archive"; then
+        fail "extract accepted a traversal path from $tool"
+    fi
+    [[ ! -e "$dir/EXTRACTED" ]] || fail "extract invoked $tool despite a traversal path"
+
+    write_stub "$tool" "$list_flag" "${prefix}safe/file.txt"
+    run_extract "$dir" "$archive" || fail "extract rejected a safe archive from $tool"
+    [[ -f "$dir/EXTRACTED" ]] || fail "extract did not invoke $tool for a safe archive"
+done
+pass "extract validates .7z and .rar members before extracting"
+
 # pubkey
 mkdir -p "$WORKDIR/keys"
 ssh-keygen -t ed25519 -N '' -f "$WORKDIR/keys/id_ed25519" -C test >/dev/null

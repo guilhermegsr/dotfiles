@@ -178,29 +178,36 @@ if [[ "$FORCE" != true && ( -e "$OUTPUT_FILE" || -L "$OUTPUT_FILE" ) ]]; then
     exit 1
 fi
 
-TEMP_TAR="$(mktemp)"
 OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
 OUTPUT_STAGE_DIR="$(mktemp -d "$OUTPUT_DIR/.dotfiles-backup.XXXXXX")"
 OUTPUT_TEMP="$OUTPUT_STAGE_DIR/archive"
-trap 'rm -f "$TEMP_TAR"; rm -rf "$OUTPUT_STAGE_DIR"' EXIT
+trap 'rm -rf "$OUTPUT_STAGE_DIR"' EXIT
 
-tar -czf "$TEMP_TAR" -C "$HOME" "${TARGETS[@]}"
+stream_archive() {
+    tar -czf - -C "$HOME" "${TARGETS[@]}"
+}
 
+# An encrypted backup is streamed straight into the encryptor, so the private
+# keys never touch the disk in the clear -- not even briefly, and not as a
+# leftover if the process is killed before the trap runs. Both tools read
+# their passphrase from the terminal, so the piped stdin does not disturb the
+# prompt or OpenSSL's confirmation step. The plain archive is written inside
+# the 0700 staging directory before it is moved into place.
 if [[ "$ENCRYPT" == true ]]; then
     info "Encrypting archive"
     case "$ENCRYPT_TOOL" in
         age)
-            if ! age -p -o "$OUTPUT_TEMP" "$TEMP_TAR"; then
+            if ! stream_archive | age -p -o "$OUTPUT_TEMP"; then
                 error "Encryption failed."
                 exit 1
             fi
             ;;
         openssl)
-            openssl_args=(-aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -in "$TEMP_TAR" -out "$OUTPUT_TEMP")
+            openssl_args=(-aes-256-cbc -pbkdf2 -iter "$OPENSSL_ITER" -salt -out "$OUTPUT_TEMP")
             if [[ -n "$OPENSSL_PASS_FILE" ]]; then
                 openssl_args+=(-pass "file:${OPENSSL_PASS_FILE}")
             fi
-            if ! openssl enc "${openssl_args[@]}"; then
+            if ! stream_archive | openssl enc "${openssl_args[@]}"; then
                 error "Encryption failed."
                 exit 1
             fi
@@ -211,8 +218,7 @@ if [[ "$ENCRYPT" == true ]]; then
             ;;
     esac
 else
-    mv "$TEMP_TAR" "$OUTPUT_TEMP"
-    TEMP_TAR=""
+    stream_archive >"$OUTPUT_TEMP"
 fi
 
 chmod 600 "$OUTPUT_TEMP"
