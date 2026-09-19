@@ -6,6 +6,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
+# shellcheck source=scripts/lock-utils.sh
+source "$ROOT/scripts/lock-utils.sh"
+
 fail() {
     echo "FAIL: $*" >&2
     exit 1
@@ -24,6 +27,22 @@ while read -r plugin_name plugin_url plugin_sha _plugin_branch; do
 done <"$ROOT/locks/zsh-plugins.lock"
 [[ "$n" -ge 1 ]] || fail "no plugins parsed from zsh-plugins.lock"
 pass "parsed $n plugin lock entries"
+
+# The checksum listing must be read to the end: stopping at the first match
+# leaves curl writing into a closed pipe, which pipefail turns into a failed
+# `make update` whenever the file is larger than the pipe buffer.
+sums_file="$WORKDIR/SHA-256.txt"
+{
+    printf '%064d  wanted.tar.xz\n' 1
+    for i in $(seq 40000); do printf '%064d  filler-%s.tar.xz\n' 0 "$i"; done
+} >"$sums_file"
+[[ "$(wc -c <"$sums_file")" -gt 65536 ]] || fail "sums fixture is smaller than a pipe buffer"
+sums_sha="$(sha256_from_sums "file://$sums_file" wanted.tar.xz)" \
+    || fail "sha256_from_sums failed on a listing larger than the pipe buffer"
+[[ "$sums_sha" == "$(printf '%064d' 1)" ]] || fail "sha256_from_sums returned '$sums_sha'"
+sha256_from_sums "file://$sums_file" ausente.tar.xz >/dev/null 2>&1 \
+    && fail "sha256_from_sums accepted a missing artifact"
+pass "checksum lookup survives a listing larger than the pipe buffer"
 
 starship_config="$(zsh -c "
 unset STARSHIP_CONFIG
@@ -95,7 +114,6 @@ ln -s "$WORKDIR/link-test/original" "$WORKDIR/link-test/dest"
 # shellcheck disable=SC1091
 source "$ROOT/scripts/lib.sh"
 # shellcheck disable=SC1091
-source "$ROOT/scripts/lock-utils.sh"
 link_file "$WORKDIR/link-test/managed" "$WORKDIR/link-test/dest" >/dev/null
 backup_link="$(find "$WORKDIR/link-test" -maxdepth 1 -name 'dest.bak.*' -print -quit)"
 [[ -n "$backup_link" && -L "$backup_link" ]] || fail "link_file did not preserve existing symlink"

@@ -179,9 +179,25 @@ if [[ "$FORCE" != true && ( -e "$OUTPUT_FILE" || -L "$OUTPUT_FILE" ) ]]; then
 fi
 
 OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
+
+# A run killed outright cannot clean up after itself, and what it leaves is a
+# partial archive of the secrets. Sweep those before starting a new one.
+while IFS= read -r stale_stage; do
+    [[ -n "$stale_stage" ]] || continue
+    rm -rf "$stale_stage"
+    info "Removed a staging directory left by an interrupted backup: $stale_stage"
+done < <(find "$OUTPUT_DIR" -maxdepth 1 -type d -name '.dotfiles-backup.*' -mmin +1440 2>/dev/null)
+
 OUTPUT_STAGE_DIR="$(mktemp -d "$OUTPUT_DIR/.dotfiles-backup.XXXXXX")"
 OUTPUT_TEMP="$OUTPUT_STAGE_DIR/archive"
-trap 'rm -rf "$OUTPUT_STAGE_DIR"' EXIT
+
+# tar and the encryptor are direct children. Without this they outlive Ctrl-C
+# and keep encrypting into a directory the trap has already removed.
+cleanup_backup() {
+    pkill -P $$ >/dev/null 2>&1 || true
+    rm -rf "$OUTPUT_STAGE_DIR"
+}
+trap cleanup_backup EXIT
 
 stream_archive() {
     tar -czf - -C "$HOME" "${TARGETS[@]}"

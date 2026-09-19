@@ -36,6 +36,19 @@ grep -q '^keep-existing$' "$TESTHOME/existing.tar.gz" || fail "existing backup o
 tar -tzf "$TESTHOME/existing.tar.gz" >/dev/null || fail "backup --force did not write an archive"
 pass "backup refuses overwrite unless --force is passed"
 
+# A run killed outright leaves its staging directory behind; the next one
+# must clear it instead of letting partial archives of the secrets pile up.
+stale_stage="$TESTHOME/.dotfiles-backup.stale1"
+fresh_stage="$TESTHOME/.dotfiles-backup.fresh1"
+mkdir -p "$stale_stage" "$fresh_stage"
+printf 'parcial\n' >"$stale_stage/archive"
+touch -d '2 days ago' "$stale_stage"
+"$ROOT/backup.sh" --plain --force "$TESTHOME/sweep.tar.gz" >/dev/null
+[[ ! -e "$stale_stage" ]] || fail "backup kept a stale staging directory"
+[[ -d "$fresh_stage" ]] || fail "backup removed a staging directory that may still be in use"
+rm -rf "$fresh_stage"
+pass "backup sweeps staging directories left by an interrupted run"
+
 export HOME="$RESTOREHOME"
 "$ROOT/restore.sh" --yes "$TESTHOME/good.tar.gz" >/dev/null
 [[ -f "$HOME/.ssh/keys/personal/id_ed25519" ]] || fail "restore did not write key"

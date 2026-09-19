@@ -6,25 +6,67 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "$ROOT/scripts/lock-utils.sh"
 
-github_latest_tag() {
-    local repo="$1"
-    curl -fsSL -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/${repo}/releases/latest" \
-        | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])'
+# Keep in sync with minimum_release_age in mise/config.toml. A quarantine that
+# the pins themselves bypass protects nothing.
+MIN_AGE_DAYS=7
+CUTOFF_EPOCH="$(($(date +%s) - MIN_AGE_DAYS * 86400))"
+
+# The release list runs to megabytes, so it lands in a file: a reader that
+# stops at the first match would leave curl writing into a closed pipe.
+github_aged_release_tag() {
+    local repo="$1" body tag=""
+    body="$(mktemp)"
+    if curl -fsSL -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${repo}/releases?per_page=50" -o "$body"; then
+        tag="$(CUTOFF="$CUTOFF_EPOCH" RELEASES="$body" python3 -c '
+import calendar, json, os, sys, time
+
+cutoff = int(os.environ["CUTOFF"])
+with open(os.environ["RELEASES"], encoding="utf-8") as handle:
+    releases = json.load(handle)
+
+for release in releases:
+    if release.get("draft") or release.get("prerelease"):
+        continue
+    published = release.get("published_at")
+    if not published:
+        continue
+    if calendar.timegm(time.strptime(published, "%Y-%m-%dT%H:%M:%SZ")) <= cutoff:
+        print(release["tag_name"])
+        break
+else:
+    sys.exit(1)
+')"
+    fi
+    rm -f "$body"
+    [[ -n "$tag" ]] || return 1
+    printf '%s' "$tag"
 }
 
-sha256_from_sums() {
-    local sums_url="$1"
-    local artifact="$2"
-    curl -fsSL "$sums_url" | awk -v name="$artifact" '
-        $2 == name || $2 == "./" name { gsub(/^\.\//, "", $2); print $1; found=1; exit }
-        END { if (!found) exit 1 }
-    '
+# Newest commit on the branch that already cleared the quarantine.
+aged_branch_commit() {
+    local url="$1" branch="$2" dir sha=""
+    dir="$(mktemp -d)"
+    if git -C "$dir" init --quiet \
+        && git -C "$dir" remote add origin "$url" \
+        && git -C "$dir" fetch --quiet --depth 50 origin "$branch"; then
+        sha="$(git -C "$dir" log FETCH_HEAD --format='%H %ct' \
+            | awk -v cutoff="$CUTOFF_EPOCH" '$2 <= cutoff { print $1; exit }')"
+    fi
+    rm -rf "$dir"
+    [[ -n "$sha" ]] || return 1
+    printf '%s' "$sha"
 }
 
-echo "==> Updating bootstrap pins"
-mise_tag="$(github_latest_tag jdx/mise)"
-font_tag="$(github_latest_tag ryanoasis/nerd-fonts)"
+echo "==> Updating bootstrap pins (nothing younger than ${MIN_AGE_DAYS} days)"
+mise_tag="$(github_aged_release_tag jdx/mise)" || {
+    echo "error: no jdx/mise release is at least ${MIN_AGE_DAYS} days old" >&2
+    exit 1
+}
+font_tag="$(github_aged_release_tag ryanoasis/nerd-fonts)" || {
+    echo "error: no ryanoasis/nerd-fonts release is at least ${MIN_AGE_DAYS} days old" >&2
+    exit 1
+}
 font_asset="JetBrainsMono.tar.xz"
 
 mise_sha_linux_x64="$(sha256_from_sums "https://github.com/jdx/mise/releases/download/${mise_tag}/SHASUMS256.txt" "mise-${mise_tag}-linux-x64.tar.gz")"
@@ -49,16 +91,15 @@ EOF
 echo "    Mise CLI ${mise_tag}"
 echo "    Nerd Font ${font_tag} / ${font_asset}"
 
-echo "==> Updating plugin SHAs"
+echo "==> Updating plugin SHAs (nothing younger than ${MIN_AGE_DAYS} days)"
 plugin_lock="$ROOT/locks/zsh-plugins.lock"
 plugin_tmp="$(mktemp)"
 {
     echo "# name url commit branch — bump with: make update"
     while read -r name url sha branch; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
-        new_sha="$(git ls-remote "$url" "refs/heads/${branch}" | awk '{print $1}')"
-        if [[ -z "$new_sha" ]]; then
-            echo "error: could not resolve HEAD for $name at $url $branch" >&2
+        if ! new_sha="$(aged_branch_commit "$url" "$branch")"; then
+            echo "error: no commit on $branch of $name is at least ${MIN_AGE_DAYS} days old" >&2
             exit 1
         fi
         echo "$name $url $new_sha $branch"

@@ -3,5 +3,6 @@ if [[ -z "${STARSHIP_CONFIG:-}" ]]; then
 fi
 
 if command -v starship >/dev/null 2>&1; then
-    eval "$(starship init zsh)"
+    starship_init="$(starship init zsh 2>/dev/null)" && eval "$starship_init"
+    unset starship_init
 fi

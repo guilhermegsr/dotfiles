@@ -27,6 +27,18 @@ verify_sha256() {
     fi
 }
 
+# Reads the whole listing instead of exiting at the first match: leaving curl
+# writing into a closed pipe makes this fail under pipefail whenever the file
+# is larger than the pipe buffer.
+sha256_from_sums() {
+    local sums_url="$1"
+    local artifact="$2"
+    curl -fsSL "$sums_url" | awk -v name="$artifact" '
+        !found && ($2 == name || $2 == "./" name) { gsub(/^\.\//, "", $2); print $1; found=1 }
+        END { if (!found) exit 1 }
+    '
+}
+
 os_triple() {
     local sys arch
     sys="$(uname -s)"

@@ -250,7 +250,7 @@ make uninstall        # Revert symlinks and restore original files
 
 For a normal removal, use `make uninstall`. To additionally remove clean plugin checkouts and the Mise bootstrap binary recorded as created by this repository, run `./uninstall.sh --purge`. Purge refuses unregistered plugins, changed Git origins, dirty checkouts, modified binaries, and unsafe ownership manifests. Mise-managed tool versions are deliberately preserved.
 
-Plugin SHAs and bootstrap artifacts remain pinned and checksummed. Run `make update` to refresh those pins and review the diff before committing. It does **not** touch the Mise tools; those follow the rules below.
+Plugin SHAs and bootstrap artifacts remain pinned and checksummed. Run `make update` to refresh those pins and review the diff before committing. It applies the same seven-day floor: it pins the newest release, and the newest plugin commit, that has already been public that long, instead of whatever landed yesterday. It does **not** touch the Mise tools; those follow the rules below.
 
 ### How tool versions move
 
@@ -263,7 +263,7 @@ mise upgrade    # move to the newest release inside the current selector
 
 `mise upgrade` never crosses a pin: with `node = "26"` it walks 26.x and stops there. Crossing one is a deliberate act — edit `mise/config.toml`, or run `mise upgrade --bump`, which rewrites the selector for you. Either way the new major lands in a diff you review and commit, instead of arriving unannounced.
 
-`minimum_release_age = "7d"` holds every release back for a week before Mise will select it, so a compromised publish has time to be noticed and pulled before it can reach this machine. It applies to pinned and rolling selectors alike: with the quarantine on, `mise latest node@26` resolves to the newest 26.x that is at least seven days old. Already-installed versions are never downgraded by it.
+`not_found_auto_install = false` keeps a tool probe from turning into an install: opening a terminal never provisions the machine, `mise install` does, and `./install.sh --offline` stays offline once the shell starts. `minimum_release_age = "7d"` holds every release back for a week before Mise will select it, so a compromised publish has time to be noticed and pulled before it can reach this machine. It applies to pinned and rolling selectors alike: with the quarantine on, `mise latest node@26` resolves to the newest 26.x that is at least seven days old. Already-installed versions are never downgraded by it.
 
 The quarantine is a delay, not a lockfile: two machines installing on different days can still land on different patch releases. Enabling `lockfile` in `[settings]` is the next step up if you want them byte-identical, at the cost of a `mise.lock` to track and refresh.
 
