@@ -279,6 +279,24 @@ git config --file "$git_global" --get-all include.path | grep -qxF "$ROOT/git/co
     || fail "migrated global Git config does not include the shared config"
 pass "install migrates a legacy global Git config symlink"
 
+credential_doctor_output() {
+    local helper="$1" home="$WORKDIR/credential-home"
+    rm -rf "$home"
+    mkdir -p "$home/.config/git"
+    printf '[include]\n    path = config.local\n' >"$home/.config/git/config"
+    printf '[credential "https://github.com"]\n\thelper = \n\thelper = %s\n' \
+        "$helper" >"$home/.config/git/config.local"
+    HOME="$home" XDG_CONFIG_HOME="$home/.config" "$ROOT/scripts/doctor.sh" 2>&1 || true
+}
+
+credential_doctor_output '!/x/.local/share/mise/installs/gh/2.101.0/bin/gh auth git-credential' \
+    | grep -q "pins a Mise install path" || fail "doctor missed a version-pinned credential helper"
+credential_doctor_output '!gh auth git-credential' \
+    | grep -q "depends on PATH" || fail "doctor missed a PATH-dependent credential helper"
+credential_doctor_output '!/x/.local/share/mise/shims/gh auth git-credential' \
+    | grep -q "version-independent" || fail "doctor flagged a shim credential helper"
+pass "doctor flags credential helpers that gh breaks on upgrade"
+
 mkdir -p "$XDG_STATE_HOME/dotfiles"
 mkdir -p "$XDG_CONFIG_HOME/mise"
 printf '%s\n' "/bin/sh" >"$XDG_STATE_HOME/dotfiles/previous-shell"

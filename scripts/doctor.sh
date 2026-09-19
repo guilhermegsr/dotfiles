@@ -139,6 +139,23 @@ else
     doctor_ok "Global Git config is machine-local and includes $ROOT/git/config"
 fi
 
+# `gh auth setup-git` rewrites this and wins over config.local, because it
+# appends past the includes and an empty value resets the helper list.
+credential_helper="$(git config --global --includes --get-all credential."https://github.com".helper 2>/dev/null | tail -n 1 || true)"
+case "$credential_helper" in
+    "") ;;
+    */mise/installs/*)
+        doctor_warn "Credential helper pins a Mise install path, so it breaks on the next upgrade: ${credential_helper#!}"
+        info "Point it at $DATA_DIR/mise/shims/ from $CONFIG_DIR/git/config.local"
+        ;;
+    '!'[!/]*)
+        doctor_warn "Credential helper depends on PATH, which Git lacks outside an interactive shell: ${credential_helper#!}"
+        ;;
+    *)
+        doctor_ok "Git credential helper is version-independent"
+        ;;
+esac
+
 for private_config in "$CONFIG_DIR/zsh/local.zsh" "$CONFIG_DIR/git/config.local"; do
     if [[ -f "$private_config" && ! -L "$private_config" ]]; then
         check_private_mode "$private_config" 600
