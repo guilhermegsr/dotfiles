@@ -32,6 +32,52 @@ migrate_secret() {
     fi
 }
 
+# The global Git config stays a real file so that `git config --global` (and
+# tools like `gh auth setup-git`) write machine state here instead of into the
+# repository. It only points at the shared config and the local overrides.
+install_git_global_config() {
+    local global="$CONFIG_DIR/git/config"
+    local shared="$DOTFILES_DIR/git/config"
+
+    if [[ -L "$global" ]]; then
+        local current_target
+        current_target="$(readlink "$global")"
+        if [[ "$current_target" == "$shared" ]]; then
+            warn "Migrating legacy symlink $global to a machine-local file"
+            rm "$global"
+        else
+            error "Refusing to replace symlink $global -> $current_target"
+            error "Move it aside explicitly, then run the installer again."
+            return 1
+        fi
+    fi
+
+    if [[ ! -e "$global" ]]; then
+        cat >"$global" <<EOF
+# Machine-local global Git config, created by the dotfiles installer.
+# Shared settings live in $shared; identity and credential helpers belong in
+# config.local. Anything written by \`git config --global\` lands here and
+# stays out of the repository.
+[include]
+    path = $shared
+[include]
+    path = config.local
+EOF
+        success "Created $global including $shared"
+        return 0
+    fi
+
+    local want
+    for want in "$shared" "config.local"; do
+        if git config --file "$global" --get-all include.path 2>/dev/null | grep -qxF "$want"; then
+            continue
+        fi
+        git config --file "$global" --add include.path "$want"
+        info "Added include.path=$want to $global"
+    done
+    success "Global Git config includes $shared"
+}
+
 install_configs() {
     section "Configs"
     ensure_config_dir "$CONFIG_DIR/zsh" "$DOTFILES_DIR/zsh"
@@ -50,7 +96,7 @@ install_configs() {
 
     ensure_config_dir "$CONFIG_DIR/git" "$DOTFILES_DIR/git"
     migrate_secret "$DOTFILES_DIR/git/config.local" "$CONFIG_DIR/git/config.local"
-    link_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
+    install_git_global_config
     link_file "$DOTFILES_DIR/git/ignore" "$CONFIG_DIR/git/ignore"
 
     link_file "$DOTFILES_DIR/mise/config.toml" "$CONFIG_DIR/mise/config.toml"

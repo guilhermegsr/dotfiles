@@ -46,5 +46,8 @@
     unstage = reset HEAD --
     last = log -1 HEAD --stat
 
-[include]
-    path = config.local
+# Shared settings only. This file is included by ~/.config/git/config, a
+# machine-local file that also includes ~/.config/git/config.local (identity,
+# credential helpers) and absorbs every `git config --global` write. Keeping
+# the global config outside the repository is what stops tools such as
+# `gh auth setup-git` from writing machine paths into version control.

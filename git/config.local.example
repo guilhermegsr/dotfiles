@@ -7,3 +7,15 @@
 
 # [commit]
 #     gpgsign = true
+
+# Credential helpers belong here, never in the versioned git/config.
+# `gh auth setup-git` writes an absolute, version-pinned path such as
+# ~/.local/share/mise/installs/gh/2.101.0/... which breaks on the next upgrade.
+# Prefer the Mise shim: it is stable across versions and resolves even when Git
+# runs outside an interactive shell (IDEs, hooks, cron), where a bare `gh` does not.
+# [credential "https://github.com"]
+#     helper =
+#     helper = !/home/YOU/.local/share/mise/shims/gh auth git-credential
+# [credential "https://gist.github.com"]
+#     helper =
+#     helper = !/home/YOU/.local/share/mise/shims/gh auth git-credential

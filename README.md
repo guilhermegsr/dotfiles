@@ -187,7 +187,7 @@ Restore **only archives you created** on a machine you trust. `--plain` backups 
 ├── alacritty/              # GPU-accelerated terminal configuration
 ├── backup.sh               # Secure archive utility for untracked secrets and SSH keys
 ├── git/                    # Global Git configuration, ignores, and local template
-│   ├── config              # Global settings (histogram diff, zdiff3, rerere)
+│   ├── config              # Shared settings, included by ~/.config/git/config (histogram diff, zdiff3, rerere)
 │   ├── config.local.example# Template for personal name/email
 │   └── ignore              # Global ignores (OS, IDEs, caches, local secrets)
 ├── install.sh              # Idempotent deployment with pinned plugins, fonts, and Mise
@@ -212,6 +212,19 @@ Restore **only archives you created** on a machine you trust. `--plain` backups 
 ```
 
 Machine-specific secrets are **not** stored in this repository. After install, `~/.config/zsh/local.zsh` and `~/.config/git/config.local` are regular files in those directories (the repo only provides templates).
+
+### Global Git config layout
+
+`~/.config/git/config` is **not** a symlink into this repository. The installer writes it as a machine-local file that only includes the other two:
+
+```ini
+[include]
+	path = ~/.dotfiles/git/config    # shared settings, versioned
+[include]
+	path = config.local              # identity and credential helpers, untracked
+```
+
+Everything written by `git config --global` — including what tools such as `gh auth setup-git`, `git lfs install` or IDE extensions write on your behalf — lands in that machine-local file and never reaches the working tree. Put identity and credential helpers in `config.local`; put settings you want on every machine in `git/config`. `make doctor` fails if the global config drifts back to a symlink, if the include is missing, or if `git/config` picks up machine-specific absolute paths.
 
 ---
 
@@ -238,4 +251,4 @@ For a normal removal, use `make uninstall`. To additionally remove clean plugin 
 
 The Starship configuration is the official Nerd Font Symbols preset. Refresh it from the repository root with `starship preset nerd-font-symbols -o starship/starship.toml`.
 
-`~/.config/zsh/local.zsh` and `~/.config/git/config.local` stay as regular files (not repo symlinks), same idea as `~/.ssh/config.local`.
+`~/.config/zsh/local.zsh`, `~/.config/git/config` and `~/.config/git/config.local` stay as regular files (not repo symlinks), same idea as `~/.ssh/config.local`. `make uninstall` removes only the dotfiles include from `~/.config/git/config` and leaves the rest of the file alone.

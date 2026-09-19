@@ -64,8 +64,30 @@ restore_latest_backup "$CONFIG_DIR/zsh"
 unlink_file "$DOTFILES_DIR/zsh/.zshenv" "$HOME/.zshenv"
 restore_latest_backup "$HOME/.zshenv"
 
+# Pre-migration installs symlinked the global Git config into the repository.
 unlink_file "$DOTFILES_DIR/git/config" "$CONFIG_DIR/git/config"
 restore_latest_backup "$CONFIG_DIR/git/config"
+
+# The migrated layout is a machine-local file; drop only our include and keep
+# the rest, the same way local.zsh and config.local are preserved.
+GIT_GLOBAL_CONFIG="$CONFIG_DIR/git/config"
+if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
+    git_includes=()
+    while IFS= read -r include_path; do
+        git_includes+=("$include_path")
+    done < <(git config --file "$GIT_GLOBAL_CONFIG" --get-all include.path 2>/dev/null || true)
+
+    if printf '%s\n' "${git_includes[@]+"${git_includes[@]}"}" | grep -qxF "$DOTFILES_DIR/git/config"; then
+        git config --file "$GIT_GLOBAL_CONFIG" --unset-all include.path || true
+        for include_path in "${git_includes[@]+"${git_includes[@]}"}"; do
+            [[ "$include_path" == "$DOTFILES_DIR/git/config" ]] && continue
+            git config --file "$GIT_GLOBAL_CONFIG" --add include.path "$include_path"
+        done
+        success "Removed the dotfiles include from $GIT_GLOBAL_CONFIG"
+    else
+        info "No dotfiles include in $GIT_GLOBAL_CONFIG"
+    fi
+fi
 unlink_file "$DOTFILES_DIR/git/ignore" "$CONFIG_DIR/git/ignore"
 restore_latest_backup "$CONFIG_DIR/git/ignore"
 unlink_file "$DOTFILES_DIR/git" "$CONFIG_DIR/git"

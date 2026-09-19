@@ -103,6 +103,14 @@ else
     doctor_fail "Git configuration is invalid"
 fi
 
+# `gh auth setup-git` and friends used to land here while the global config was
+# a symlink into the repository.
+if grep -qE '(/home/|/Users/)' "$ROOT/git/config"; then
+    doctor_fail "git/config holds machine-specific paths; move them to $CONFIG_DIR/git/config.local"
+else
+    doctor_ok "Git configuration is free of machine-specific paths"
+fi
+
 section "Managed links"
 while IFS=$'\t' read -r expected dest; do
     check_link "$expected" "$dest"
@@ -112,7 +120,6 @@ $ROOT/zsh/.zshenv	$CONFIG_DIR/zsh/.zshenv
 $ROOT/zsh/config	$CONFIG_DIR/zsh/config
 $ROOT/zsh/integrations	$CONFIG_DIR/zsh/integrations
 $ROOT/zsh/.zshenv	$HOME/.zshenv
-$ROOT/git/config	$CONFIG_DIR/git/config
 $ROOT/git/ignore	$CONFIG_DIR/git/ignore
 $ROOT/mise/config.toml	$CONFIG_DIR/mise/config.toml
 $ROOT/starship/starship.toml	$CONFIG_DIR/starship.toml
@@ -120,6 +127,19 @@ $ROOT/tmux	$CONFIG_DIR/tmux
 $ROOT/alacritty	$CONFIG_DIR/alacritty
 $ROOT/ssh/config	$HOME/.ssh/config
 EOF
+
+git_global_config="$CONFIG_DIR/git/config"
+if [[ -L "$git_global_config" ]]; then
+    doctor_fail "$git_global_config is a symlink into the repository; run ./install.sh to migrate it"
+elif [[ ! -f "$git_global_config" ]]; then
+    doctor_fail "Missing global Git config: $git_global_config"
+elif ! git config --file "$git_global_config" --get-all include.path 2>/dev/null | grep -qxF "$ROOT/git/config"; then
+    doctor_fail "$git_global_config does not include $ROOT/git/config"
+elif [[ "$(git config --file "$git_global_config" --includes --get init.defaultBranch 2>/dev/null || true)" != "main" ]]; then
+    doctor_fail "Shared Git settings are not reachable through $git_global_config"
+else
+    doctor_ok "Global Git config is machine-local and includes $ROOT/git/config"
+fi
 
 for private_config in "$CONFIG_DIR/zsh/local.zsh" "$CONFIG_DIR/git/config.local"; do
     if [[ -f "$private_config" && ! -L "$private_config" ]]; then

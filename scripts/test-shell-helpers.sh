@@ -187,6 +187,32 @@ fi
 grep -q '0 errors' "$doctor_log" || fail "doctor did not report a clean result"
 pass "doctor validates an installed configuration without changing it"
 
+# The global Git config must stay machine-local: `git config --global` writes
+# (and tools such as `gh auth setup-git`) must never reach the repository.
+git_global="$XDG_CONFIG_HOME/git/config"
+[[ -f "$git_global" && ! -L "$git_global" ]] || fail "global Git config is not a machine-local regular file"
+git config --file "$git_global" --get-all include.path | grep -qxF "$ROOT/git/config" \
+    || fail "global Git config does not include the shared config"
+[[ "$(git config --file "$git_global" --includes --get init.defaultBranch)" == "main" ]] \
+    || fail "shared Git settings are not reachable through the global config"
+git config --global dotfilestest.marker leaked-marker
+grep -q leaked-marker "$git_global" || fail "git config --global did not write to $git_global"
+! grep -q leaked-marker "$ROOT/git/config" || fail "git config --global wrote into the repository"
+git config --global --unset dotfilestest.marker
+pass "global Git config keeps 'git config --global' writes out of the repository"
+
+rm -f "$git_global"
+ln -s "$ROOT/git/config" "$git_global"
+migrate_log="$TESTHOME/install-migrate.log"
+if ! "$ROOT/install.sh" --offline --no-chsh >"$migrate_log" 2>&1; then
+    cat "$migrate_log" >&2
+    fail "offline install failed while migrating the legacy Git config symlink"
+fi
+[[ -f "$git_global" && ! -L "$git_global" ]] || fail "install did not migrate the legacy Git config symlink"
+git config --file "$git_global" --get-all include.path | grep -qxF "$ROOT/git/config" \
+    || fail "migrated global Git config does not include the shared config"
+pass "install migrates a legacy global Git config symlink"
+
 mkdir -p "$XDG_STATE_HOME/dotfiles"
 mkdir -p "$XDG_CONFIG_HOME/mise"
 printf '%s\n' "/bin/sh" >"$XDG_STATE_HOME/dotfiles/previous-shell"
@@ -241,6 +267,12 @@ grep -q "would restore /bin/sh" "$log" || {
 pass "uninstall restores the saved login shell"
 [[ ! -L "$XDG_CONFIG_HOME/mise/mise.lock" ]] || fail "uninstall kept the legacy Mise lock symlink"
 pass "uninstall removes the legacy Mise lock symlink"
+[[ -f "$XDG_CONFIG_HOME/git/config" ]] || fail "uninstall removed the machine-local global Git config"
+! git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "$ROOT/git/config" \
+    || fail "uninstall kept the dotfiles include in the global Git config"
+git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "config.local" \
+    || fail "uninstall dropped the config.local include"
+pass "uninstall removes only the dotfiles include from the global Git config"
 [[ ! -e "$managed_plugin" ]] || fail "purge kept a recorded clean plugin"
 [[ -d "$dirty_plugin" ]] || fail "purge removed a plugin with local changes"
 [[ -d "$XDG_DATA_HOME/zsh/plugins/user-plugin" ]] || fail "purge removed an unregistered plugin"
