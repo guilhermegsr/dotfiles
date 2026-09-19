@@ -12,6 +12,7 @@ rust = "1"
 uv = "latest"
 
 # Rolling; the release-age quarantine below is what guards these.
+age = "latest"
 bat = "latest"
 eza = "latest"
 fd = "latest"

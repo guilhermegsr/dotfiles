@@ -122,6 +122,50 @@ if command -v openssl >/dev/null 2>&1; then
         "$ROOT/restore.sh" --yes "$TESTHOME/good.tar.gz.enc" >/dev/null
     [[ -f "$HOME/.ssh/keys/personal/id_ed25519" ]] || fail "encrypted restore did not write key"
     pass "openssl encrypt/decrypt round-trip"
+
+if command -v age >/dev/null 2>&1; then
+    export HOME="$TESTHOME"
+    mkdir -p "$HOME/.ssh/keys/personal"
+    ssh-keygen -q -t ed25519 -N '' -f "$HOME/.ssh/keys/personal/id_ed25519" <<<y >/dev/null 2>&1
+    ssh-keygen -q -t ed25519 -N '' -f "$TESTHOME/spare" >/dev/null 2>&1
+    cat "$TESTHOME/spare.pub" >"$HOME/.ssh/age-recipients"
+
+    age_log="$TESTHOME/age-backup.log"
+    "$ROOT/backup.sh" "$TESTHOME/keyed.tar.gz" >"$age_log" 2>&1 \
+        || { cat "$age_log" >&2; fail "keyed backup failed"; }
+    [[ -f "$TESTHOME/keyed.tar.gz.age" ]] || fail "keyed backup produced no .age archive"
+    grep -q "id_ed25519.pub" "$age_log" || fail "backup did not report the recipient"
+
+    # The personal key restores without any passphrase at all.
+    AGEHOME="$(mktemp -d)"
+    mkdir -p "$AGEHOME/.ssh/keys/personal"
+    cp "$HOME/.ssh/keys/personal/id_ed25519" "$AGEHOME/.ssh/keys/personal/id_ed25519"
+    HOME="$AGEHOME" "$ROOT/restore.sh" --yes "$TESTHOME/keyed.tar.gz.age" </dev/null >/dev/null 2>&1 \
+        || fail "restore with the personal key failed"
+    [[ -f "$AGEHOME/.ssh/keys/personal/id_ed25519" ]] || fail "restore lost the key it decrypted with"
+    grep -q '^# local$' "$AGEHOME/.config/zsh/local.zsh" 2>/dev/null \
+        || fail "restore did not write the archived files"
+
+    # The spare recipient is a second, independent way in.
+    SPAREHOME="$(mktemp -d)"
+    HOME="$SPAREHOME" DOTFILES_AGE_IDENTITY="$TESTHOME/spare" \
+        "$ROOT/restore.sh" --yes "$TESTHOME/keyed.tar.gz.age" </dev/null >/dev/null 2>&1 \
+        || fail "restore with the spare recipient failed"
+    [[ -f "$SPAREHOME/.config/zsh/local.zsh" ]] || fail "spare restore wrote nothing"
+
+    # A key that is not a recipient must not open it.
+    ssh-keygen -q -t ed25519 -N '' -f "$TESTHOME/outsider" >/dev/null 2>&1
+    OUTHOME="$(mktemp -d)"
+    if HOME="$OUTHOME" DOTFILES_AGE_IDENTITY="$TESTHOME/outsider" \
+        "$ROOT/restore.sh" --yes "$TESTHOME/keyed.tar.gz.age" </dev/null >/dev/null 2>&1; then
+        fail "restore accepted a key that is not a recipient"
+    fi
+
+    rm -rf "$AGEHOME" "$SPAREHOME" "$OUTHOME"
+    pass "age backup encrypts to the SSH key and restores without a passphrase"
+else
+    echo "SKIP age recipient round-trip (age is not installed)"
+fi
 else
     echo "notice: openssl was not found; skipped the encryption round-trip"
 fi

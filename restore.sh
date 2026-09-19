@@ -18,12 +18,22 @@ ALLOWED_PREFIXES=(
 OPENSSL_ITER=600000
 OPENSSL_ITER_LEGACY=10000
 
+# Identities tried, in order, before falling back to a passphrase prompt.
+AGE_IDENTITIES=(
+    "$HOME/.ssh/keys/personal/id_ed25519"
+    "$HOME/.ssh/id_ed25519"
+)
+
 usage() {
     cat <<'EOF'
 Usage: restore.sh [--yes] [backup_archive]
 
   -y, --yes  Skip the confirmation prompt. The allowlist still applies.
   -h, --help Show this help
+
+An .age archive is decrypted with ~/.ssh/keys/personal/id_ed25519 when that
+key opens it, and falls back to prompting for a passphrase. Point
+DOTFILES_AGE_IDENTITY at a key file to use another one.
 
 Only allowlisted paths are restored. Members with '..', absolute paths,
 symbolic links, or special file types are rejected, and so is any destination
@@ -179,10 +189,24 @@ if [[ "$BACKUP_FILE" == *.age ]]; then
         error "age is required to decrypt $BACKUP_FILE."
         exit 1
     fi
-    info "Decrypting with age"
-    if ! age -d -o "$TEMP_TAR" "$BACKUP_FILE"; then
-        error "Decryption failed. Check the passphrase and try again."
-        exit 1
+    age_decrypted=false
+    if [[ -n "${DOTFILES_AGE_IDENTITY:-}" ]]; then
+        AGE_IDENTITIES=("$DOTFILES_AGE_IDENTITY" "${AGE_IDENTITIES[@]}")
+    fi
+    for identity in "${AGE_IDENTITIES[@]}"; do
+        [[ -f "$identity" ]] || continue
+        if age -d -i "$identity" -o "$TEMP_TAR" "$BACKUP_FILE" 2>/dev/null; then
+            info "Decrypted with $identity"
+            age_decrypted=true
+            break
+        fi
+    done
+    if [[ "$age_decrypted" == false ]]; then
+        info "No SSH key opened this archive; falling back to a passphrase"
+        if ! age -d -o "$TEMP_TAR" "$BACKUP_FILE"; then
+            error "Decryption failed. Check the key or passphrase and try again."
+            exit 1
+        fi
     fi
 elif [[ "$BACKUP_FILE" == *.enc ]]; then
     if ! command -v openssl >/dev/null 2>&1; then

@@ -18,21 +18,33 @@ CANDIDATES=(
 # openssl enc does not store iter; restore tries 600000 then 10000.
 OPENSSL_ITER=600000
 
+# Encrypting to a key beats encrypting to a passphrase for this archive: the
+# machine it restores onto is being rebuilt, and a passphrase remembered from
+# months ago is the likeliest thing to be missing. age cannot mix -R with -p,
+# so a spare key is how you keep a second way in; list it in this file.
+DEFAULT_RECIPIENT="$HOME/.ssh/keys/personal/id_ed25519.pub"
+EXTRA_RECIPIENTS="${DOTFILES_AGE_RECIPIENTS:-$HOME/.ssh/age-recipients}"
+
 usage() {
     cat <<'EOF'
-Usage: backup.sh [--plain] [--force] [output_path]
+Usage: backup.sh [--plain] [--passphrase] [--force] [output_path]
 
-  --plain    Skip encryption. The archive will contain SSH private keys.
-  --force    Replace an existing output file.
-  -h, --help Show this help
+  --plain      Skip encryption. The archive will contain SSH private keys.
+  --passphrase Encrypt to a passphrase instead of to your SSH key.
+  --force      Replace an existing output file.
+  -h, --help   Show this help
 
-Encryption is on by default. age is preferred; OpenSSL AES-256-CBC with
-PBKDF2 is used when age is not installed. Set DOTFILES_OPENSSL_PASS_FILE
-to a passphrase file for non-interactive OpenSSL encryption.
+Encryption is on by default. With age installed, the archive is encrypted to
+your public key at ~/.ssh/keys/personal/id_ed25519.pub, so restoring needs
+the matching private key and no passphrase. Add more public keys to
+~/.ssh/age-recipients (or point DOTFILES_AGE_RECIPIENTS at a file) to keep a
+second way in. Without age, or with --passphrase, OpenSSL AES-256-CBC with
+PBKDF2 is used; set DOTFILES_OPENSSL_PASS_FILE for a non-interactive run.
 EOF
 }
 
 PLAIN=false
+PASSPHRASE=false
 FORCE=false
 OUTPUT_FILE=""
 
@@ -40,6 +52,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --plain)
             PLAIN=true
+            shift
+            ;;
+        --passphrase)
+            PASSPHRASE=true
             shift
             ;;
         --force)
@@ -99,10 +115,33 @@ section "Output"
 
 OPENSSL_PASS_FILE="${DOTFILES_OPENSSL_PASS_FILE:-}"
 
+ENCRYPT_TOOL=""
+AGE_RECIPIENT_ARGS=()
+DEFAULT_ARCHIVE_NAME="dotfiles-backup-${TIMESTAMP}.tar.gz"
+
+collect_age_recipients() {
+    AGE_RECIPIENT_ARGS=()
+    if [[ -f "$DEFAULT_RECIPIENT" ]]; then
+        AGE_RECIPIENT_ARGS+=(-R "$DEFAULT_RECIPIENT")
+    fi
+    if [[ -f "$EXTRA_RECIPIENTS" ]]; then
+        AGE_RECIPIENT_ARGS+=(-R "$EXTRA_RECIPIENTS")
+    fi
+    [[ ${#AGE_RECIPIENT_ARGS[@]} -gt 0 ]]
+}
+
+# Encrypting to a key needs no prompt and no secret to type, so it is also
+# what makes an unattended backup possible.
+KEY_ENCRYPTION=false
+if [[ "$PASSPHRASE" == false && -z "$OPENSSL_PASS_FILE" ]] \
+    && command -v age >/dev/null 2>&1 && collect_age_recipients; then
+    KEY_ENCRYPTION=true
+fi
+
 ENCRYPT=true
 if [[ "$PLAIN" == true ]]; then
     ENCRYPT=false
-elif [[ -n "$OPENSSL_PASS_FILE" ]]; then
+elif [[ "$KEY_ENCRYPTION" == true || -n "$OPENSSL_PASS_FILE" ]]; then
     ENCRYPT=true
 elif [[ -t 0 ]]; then
     read -r -p "  Encrypt archive with a password? [Y/n]: " encrypt_choice
@@ -110,15 +149,23 @@ elif [[ -t 0 ]]; then
         ENCRYPT=false
     fi
 else
-    error "Encryption requires a terminal, --plain, or DOTFILES_OPENSSL_PASS_FILE."
+    error "Encryption needs a recipient key, a terminal, --plain, or DOTFILES_OPENSSL_PASS_FILE."
     exit 1
 fi
 
-ENCRYPT_TOOL=""
-DEFAULT_ARCHIVE_NAME="dotfiles-backup-${TIMESTAMP}.tar.gz"
-
 if [[ "$ENCRYPT" == true ]]; then
-    if [[ -n "$OPENSSL_PASS_FILE" ]]; then
+    if [[ "$KEY_ENCRYPTION" == true ]]; then
+        ENCRYPT_TOOL="age-recipients"
+        DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.age"
+        info "Encrypting with age to:"
+        for recipient_arg in "${AGE_RECIPIENT_ARGS[@]}"; do
+            [[ "$recipient_arg" == "-R" ]] && continue
+            printf "    %b•%b %s\n" "$CYAN" "$NC" "$recipient_arg"
+        done
+        if [[ ! -f "$EXTRA_RECIPIENTS" ]]; then
+            info "Add spare public keys to $EXTRA_RECIPIENTS to keep a second way in"
+        fi
+    elif [[ -n "$OPENSSL_PASS_FILE" ]]; then
         if [[ ! -f "$OPENSSL_PASS_FILE" ]]; then
             error "Passphrase file not found: $OPENSSL_PASS_FILE"
             exit 1
@@ -133,7 +180,7 @@ if [[ "$ENCRYPT" == true ]]; then
     elif command -v age >/dev/null 2>&1; then
         ENCRYPT_TOOL="age"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.age"
-        info "Encrypting with age"
+        info "Encrypting with age, to a passphrase"
     elif command -v openssl >/dev/null 2>&1; then
         ENCRYPT_TOOL="openssl"
         DEFAULT_ARCHIVE_NAME="${DEFAULT_ARCHIVE_NAME}.enc"
@@ -158,7 +205,7 @@ fi
 
 OUTPUT_FILE="${OUTPUT_FILE/#\~/$HOME}"
 
-if [[ "$ENCRYPT" == true && "$ENCRYPT_TOOL" == "age" && "$OUTPUT_FILE" != *.age ]]; then
+if [[ "$ENCRYPT" == true && "$ENCRYPT_TOOL" == age* && "$OUTPUT_FILE" != *.age ]]; then
     OUTPUT_FILE="${OUTPUT_FILE}.age"
 fi
 if [[ "$ENCRYPT" == true && "$ENCRYPT_TOOL" == "openssl" && "$OUTPUT_FILE" != *.enc ]]; then
@@ -208,6 +255,12 @@ stream_archive() {
 if [[ "$ENCRYPT" == true ]]; then
     info "Encrypting archive"
     case "$ENCRYPT_TOOL" in
+        age-recipients)
+            if ! stream_archive | age "${AGE_RECIPIENT_ARGS[@]}" -o "$OUTPUT_TEMP"; then
+                error "Encryption failed."
+                exit 1
+            fi
+            ;;
         age)
             if ! stream_archive | age -p -o "$OUTPUT_TEMP"; then
                 error "Encryption failed."
