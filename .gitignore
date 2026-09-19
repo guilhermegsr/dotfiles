@@ -13,12 +13,10 @@ dotfiles-backup-*.tar.gz*
 *.age
 *.enc
 
-# Local overrides & secrets
+# Local overrides and secrets: identity, credential helpers, tokens
 *.local
 *.local.zsh
 zsh/local.zsh
-# Identity, credential helpers, and other machine-only git settings
-git/config.local
 
 # OS metadata
 .DS_Store

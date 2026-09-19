@@ -1,8 +1,6 @@
 # shellcheck shell=bash
-# Only what Mise cannot provide: interpreters and CLI tools come from
-# mise/config.toml, which is already OS-agnostic. What is left is small enough
-# that a per-manager name list stays honest instead of becoming a translation
-# table nobody maintains.
+# Only what Mise cannot provide. What is left is short enough that a name
+# list per manager stays honest instead of becoming a translation table.
 
 detect_package_manager() {
     if [[ "$OSTYPE" == darwin* ]] && command -v brew >/dev/null 2>&1; then

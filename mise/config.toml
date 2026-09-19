@@ -31,7 +31,6 @@ legacy_version_file = true
 lockfile = false
 locked = false
 minimum_release_age = "7d"
-# Without this, probing a tool from .zshrc silently downloads and installs it:
-# opening a terminal is not a request to provision the machine. `mise install`
-# is. It also keeps `install.sh --offline` honest once the shell starts.
+# Opening a terminal is not a request to provision the machine. Without
+# this, probing a tool from .zshrc silently installs it.
 not_found_auto_install = false

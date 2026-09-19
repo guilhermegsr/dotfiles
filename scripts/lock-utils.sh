@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 
 sha256_file() {
     local file="$1"
@@ -27,9 +27,8 @@ verify_sha256() {
     fi
 }
 
-# Reads the whole listing instead of exiting at the first match: leaving curl
-# writing into a closed pipe makes this fail under pipefail whenever the file
-# is larger than the pipe buffer.
+# Reads the listing to the end: stopping early leaves curl writing into a
+# closed pipe, which pipefail turns into a failure on any large file.
 sha256_from_sums() {
     local sums_url="$1"
     local artifact="$2"

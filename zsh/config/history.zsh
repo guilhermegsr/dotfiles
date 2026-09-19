@@ -8,8 +8,7 @@ chmod 600 "$HISTFILE"
 HISTSIZE=50000
 SAVEHIST=50000
 
-# Applied when the history file is written; the line stays in the session's
-# in-memory history until then.
+# Applied on write; the line stays in the session's history until then.
 HISTORY_IGNORE='(*(TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|APIKEY|ACCESS_KEY|PRIVATE_KEY)=*|*--password*|*--token*|*Authorization:*|gh auth login*|ssh-add*|openssl *)'
 
 setopt EXTENDED_HISTORY
