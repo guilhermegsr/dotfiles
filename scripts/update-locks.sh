@@ -80,8 +80,9 @@ if command -v git >/dev/null 2>&1 && [[ -d "$PLUGIN_DIR" ]]; then
     done <"$plugin_lock"
 fi
 
-echo "==> Mise uses rolling selectors"
-echo "    Run 'mise install' when you want to resolve and install current releases."
-echo "    Java remains constrained to major version 25."
+echo "==> Mise tools are not touched by this script"
+echo "    Languages are pinned to a major series in mise/config.toml; CLI tools roll."
+echo "    Run 'mise outdated' to review, 'mise upgrade' to move inside a pin,"
+echo "    and 'mise upgrade --bump' to cross one and rewrite the selector."
 
 echo "==> Done. Review and commit locks/."

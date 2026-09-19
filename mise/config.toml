@@ -1,12 +1,22 @@
+# Languages are pinned to the series that actually gates breaking changes, so
+# `mise upgrade` moves within it and never crosses it on its own. Crossing a
+# pin is a deliberate edit that shows up in a diff and a commit.
 [tools]
-bun = "latest"
-go = "latest"
+bun = "1"
+go = "1.27"
 java = "25"
-node = "latest"
-python = "latest"
-rust = "latest"
+node = "26"
+python = "3.14"
+# Rust has no major beyond 1.x, so this selector tracks every release the same
+# way "latest" would. It is written out to keep the intent visible.
+rust = "1"
+# uv is pre-1.0 and moves fast; a pin here would need bumping every few weeks,
+# so it relies on the release-age quarantine below instead.
 uv = "latest"
 
+# Ancillary CLI tools stay on rolling selectors. The quarantine is what guards
+# them: a fresh release is not eligible until it has been public long enough
+# for a compromised publish to surface and be pulled.
 bat = "latest"
 eza = "latest"
 fd = "latest"
@@ -24,4 +34,4 @@ ffmpeg = "latest"
 legacy_version_file = true
 lockfile = false
 locked = false
-minimum_release_age = "0s"
+minimum_release_age = "7d"

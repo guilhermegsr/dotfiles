@@ -30,7 +30,7 @@ During installation, the installer will interactively prompt for:
 | **VCS** | [Git](https://git-scm.com/) | XDG config, `zdiff3` conflict style, `histogram` diff, `rerere`, `fetch.prune`, automatic remote setup |
 | **Multiplexer** | [Tmux](https://github.com/tmux/tmux) | Omarchy-inspired top status bar (`●`), `Ctrl+b` prefix, arrow navigation, automatic window naming, `Alt+1..9` tabs |
 | **Terminal** | [Alacritty](https://alacritty.org/) | GPU-accelerated, JetBrainsMono Nerd Font (11px), `Beam` cursor shape |
-| **Toolchains** | [Mise](https://mise.jdx.dev/) | Rolling latest stable tools, with Java constrained to major version 25 |
+| **Toolchains** | [Mise](https://mise.jdx.dev/) | Languages pinned to a major series, CLI tools rolling, every release held back 7 days |
 | **Modern CLI** | Core Utilities | `eza` (ls), `bat` (cat), `ripgrep` (grep), `fd` (find), `zoxide` (cd), `fzf` (fuzzy search) |
 
 ---
@@ -192,7 +192,7 @@ Restore **only archives you created** on a machine you trust. `--plain` backups 
 │   └── ignore              # Global ignores (OS, IDEs, caches, local secrets)
 ├── install.sh              # Idempotent deployment with pinned plugins, fonts, and Mise
 ├── locks/                  # Pinned plugin SHAs and bootstrap artifact checksums
-├── mise/                   # Global CLI tools; rolling selectors live in config.toml
+├── mise/                   # Toolchains and CLI tools; version selectors live in config.toml
 ├── restore.sh              # Allowlisted restoration with permission hardening
 ├── scripts/                # Doctor, maintenance helpers and regression tests
 │   ├── install/            # Config, plugin, font, Mise, shell and onboarding modules
@@ -236,7 +236,7 @@ make install-offline  # Deploy configs without network downloads or tool install
 make doctor           # Diagnose links, permissions, configs and managed runtimes
 make backup           # Create encrypted archive of local secrets and SSH keys
 make restore          # Restore secrets and SSH keys from a backup archive
-make update           # Bump plugin/bootstrap pins; Java remains constrained to 25
+make update           # Bump plugin/bootstrap pins (not the Mise tools)
 make check            # Lint plus backup/restore and shell-helper tests (what CI runs)
 make test             # Alias for check
 make lint             # Validate syntax and run ShellCheck analysis
@@ -247,7 +247,22 @@ make uninstall        # Revert symlinks and restore original files
 
 For a normal removal, use `make uninstall`. To additionally remove clean plugin checkouts and the Mise bootstrap binary recorded as created by this repository, run `./uninstall.sh --purge`. Purge refuses unregistered plugins, changed Git origins, dirty checkouts, modified binaries, and unsafe ownership manifests. Mise-managed tool versions are deliberately preserved.
 
-`mise install` resolves the latest stable release of each declared tool at execution time; Java resolves only within major version 25. Plugin SHAs and bootstrap artifacts remain pinned and checksummed. Run `make update` to refresh those pins and review the diff before committing.
+Plugin SHAs and bootstrap artifacts remain pinned and checksummed. Run `make update` to refresh those pins and review the diff before committing. It does **not** touch the Mise tools; those follow the rules below.
+
+### How tool versions move
+
+`mise/config.toml` pins each language to the series that gates breaking changes (`node = "26"`, `go = "1.27"`, `python = "3.14"`, `java = "25"`, `bun = "1"`), while ancillary CLI tools stay on `latest`. Two commands cover every update:
+
+```bash
+mise outdated   # what has a newer version available
+mise upgrade    # move to the newest release inside the current selector
+```
+
+`mise upgrade` never crosses a pin: with `node = "26"` it walks 26.x and stops there. Crossing one is a deliberate act — edit `mise/config.toml`, or run `mise upgrade --bump`, which rewrites the selector for you. Either way the new major lands in a diff you review and commit, instead of arriving unannounced.
+
+`minimum_release_age = "7d"` holds every release back for a week before Mise will select it, so a compromised publish has time to be noticed and pulled before it can reach this machine. It applies to pinned and rolling selectors alike: with the quarantine on, `mise latest node@26` resolves to the newest 26.x that is at least seven days old. Already-installed versions are never downgraded by it.
+
+The quarantine is a delay, not a lockfile: two machines installing on different days can still land on different patch releases. Enabling `lockfile` in `[settings]` is the next step up if you want them byte-identical, at the cost of a `mise.lock` to track and refresh.
 
 The Starship configuration is the official Nerd Font Symbols preset. Refresh it from the repository root with `starship preset nerd-font-symbols -o starship/starship.toml`.
 
