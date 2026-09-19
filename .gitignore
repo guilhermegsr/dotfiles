@@ -17,6 +17,7 @@ dotfiles-backup-*.tar.gz*
 *.local
 *.local.zsh
 zsh/local.zsh
+# Identity, credential helpers, and other machine-only git settings
 git/config.local
 
 # OS metadata
