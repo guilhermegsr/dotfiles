@@ -1,0 +1,13 @@
+# Fedora / RHEL. Everything else comes from mise/config.toml.
+# zsh, git, curl and tar are prerequisites of the installer itself: without
+# them you cannot clone or run it, so they are listed to repair a partial
+# system, not to bootstrap a bare one.
+zsh
+git
+curl
+tar
+fontconfig
+alacritty
+wl-clipboard
+xclip
+openssh-clients

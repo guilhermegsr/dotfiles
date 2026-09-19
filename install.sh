@@ -7,6 +7,8 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DOTFILES_DIR/scripts/lib.sh"
 # shellcheck source=scripts/lock-utils.sh
 source "$DOTFILES_DIR/scripts/lock-utils.sh"
+# shellcheck source=scripts/install/packages.sh
+source "$DOTFILES_DIR/scripts/install/packages.sh"
 # shellcheck source=scripts/install/configs.sh
 source "$DOTFILES_DIR/scripts/install/configs.sh"
 # shellcheck source=scripts/install/plugins.sh
@@ -21,6 +23,7 @@ source "$DOTFILES_DIR/scripts/install/shell.sh"
 source "$DOTFILES_DIR/scripts/install/onboarding.sh"
 
 OFFLINE=false
+WITH_PACKAGES=false
 SKIP_CHSH=false
 if [[ "${DOTFILES_SKIP_CHSH:-0}" == 1 ]]; then
     SKIP_CHSH=true
@@ -28,12 +31,13 @@ fi
 
 usage() {
     cat <<'EOF'
-Usage: ./install.sh [--offline] [--no-chsh]
+Usage: ./install.sh [--offline] [--with-packages] [--no-chsh]
 
 Options:
-  --offline  Deploy configuration without downloading plugins, fonts, Mise, or tools
-  --no-chsh  Do not change the login shell
-  -h, --help Show this help message
+  --offline        Deploy configuration without downloading plugins, fonts, Mise, or tools
+  --with-packages  Install the system packages Mise cannot provide (needs sudo)
+  --no-chsh        Do not change the login shell
+  -h, --help       Show this help message
 EOF
 }
 
@@ -41,6 +45,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --offline)
             OFFLINE=true
+            ;;
+        --with-packages)
+            WITH_PACKAGES=true
             ;;
         --no-chsh)
             SKIP_CHSH=true
@@ -72,6 +79,7 @@ if [[ "$OFFLINE" == true ]]; then
     info "Offline mode: network-dependent provisioning will be skipped"
 fi
 
+install_packages
 install_configs
 install_ssh_config
 install_plugins

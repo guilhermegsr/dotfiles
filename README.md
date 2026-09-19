@@ -9,6 +9,8 @@ cd ~/.dotfiles && make install
 
 `make install` is idempotent. It links the configs, installs the pinned Zsh plugins, the JetBrains Mono Nerd Font and Mise, then asks three things: restore a backup, Git identity, generate an SSH key. Answering nothing leaves templates behind. `make install-offline` skips every download; `--no-chsh` leaves the login shell alone.
 
+`./install.sh --with-packages` also installs the few things Mise cannot provide — Alacritty, `wl-clipboard`, `fontconfig` and friends — through whichever of `dnf`, `apt`, `pacman` or `brew` is present. The dispatcher is shared; only the names in `packages/<manager>.txt` differ, and the list stays short precisely because every interpreter and CLI tool comes from Mise. It is opt-in because it needs `sudo`, and it installs only what is missing.
+
 ## What it sets up
 
 | | |
@@ -77,6 +79,7 @@ mise upgrade    # move inside the current pin (--bump crosses it and rewrites th
 ```text
 install.sh uninstall.sh backup.sh restore.sh   # entrypoints, all idempotent
 locks/        # pinned plugin commits and bootstrap checksums
+packages/     # system packages per manager, for --with-packages
 scripts/      # doctor, lock maintenance, tests, install/ and uninstall/ modules
 zsh/          # .zshenv, .zshrc, config/ and integrations/
 git/ ssh/ mise/ tmux/ alacritty/ starship/     # per-tool configuration

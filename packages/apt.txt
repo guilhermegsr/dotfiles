@@ -1,0 +1,10 @@
+# Debian / Ubuntu. Names differ from Fedora: openssh-client is singular here.
+zsh
+git
+curl
+tar
+fontconfig
+alacritty
+wl-clipboard
+xclip
+openssh-client

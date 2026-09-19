@@ -1,0 +1,10 @@
+# Arch. openssh is a single package here.
+zsh
+git
+curl
+tar
+fontconfig
+alacritty
+wl-clipboard
+xclip
+openssh

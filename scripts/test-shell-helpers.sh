@@ -97,6 +97,7 @@ pass "history file skips secret-bearing commands and keeps ordinary ones"
 
 help_output="$("$ROOT/install.sh" --help)"
 grep -q -- '--offline' <<<"$help_output" || fail "installer help omits --offline"
+grep -q -- '--with-packages' <<<"$help_output" || fail "installer help omits --with-packages"
 grep -q -- '--no-chsh' <<<"$help_output" || fail "installer help omits --no-chsh"
 "$ROOT/uninstall.sh" --help | grep -q -- '--purge' || fail "uninstaller help omits --purge"
 if "$ROOT/install.sh" --invalid-option >/dev/null 2>&1; then
@@ -106,6 +107,35 @@ if "$ROOT/uninstall.sh" --invalid-option >/dev/null 2>&1; then
     fail "uninstaller accepted an invalid option"
 fi
 pass "install and uninstall validate command-line options"
+
+# The package layer is the one OS-specific piece: the dispatcher is shared and
+# only the names differ, so both halves are checked here.
+# shellcheck source=scripts/install/packages.sh
+source "$ROOT/scripts/install/packages.sh"
+
+pkg_manager="$(detect_package_manager)" || fail "no package manager detected on this system"
+case "$pkg_manager" in
+    dnf | apt | pacman | brew) ;;
+    *) fail "detect_package_manager returned '$pkg_manager'" ;;
+esac
+[[ -f "$ROOT/packages/${pkg_manager}.txt" ]] || fail "no package list for $pkg_manager"
+
+for manifest in "$ROOT"/packages/*.txt; do
+    read_package_list "$manifest"
+    for entry in ${PACKAGE_LIST[@]+"${PACKAGE_LIST[@]}"}; do
+        [[ "$entry" == \#* ]] && fail "$manifest leaked a comment into the list"
+        [[ "$entry" =~ ^[a-zA-Z0-9._+-]+$ ]] || fail "$manifest has a suspect entry: $entry"
+    done
+done
+
+read_package_list "$ROOT/packages/${pkg_manager}.txt"
+if [[ "$pkg_manager" != brew ]]; then
+    [[ ${#PACKAGE_LIST[@]} -ge 1 ]] || fail "the $pkg_manager list is empty"
+    package_is_installed "$pkg_manager" git || fail "git reported as missing by $pkg_manager"
+fi
+package_is_installed "$pkg_manager" nao-existe-neste-sistema-xyz \
+    && fail "$pkg_manager reported a nonexistent package as installed"
+pass "package lists parse and the manager detects what is installed"
 
 mkdir -p "$WORKDIR/link-test"
 printf '%s\n' original >"$WORKDIR/link-test/original"
@@ -271,6 +301,7 @@ if ! "$ROOT/install.sh" --offline --no-chsh >"$install_log" 2>&1; then
     fail "offline install exited non-zero"
 fi
 grep -q "Offline mode" "$install_log" || fail "offline install did not report its mode"
+grep -q "Skipping system packages" "$install_log" || fail "offline install did not skip system packages"
 [[ -L "$XDG_CONFIG_HOME/starship.toml" ]] || fail "offline install did not link Starship config"
 [[ ! -e "$HOME/.local/bin/mise" ]] || fail "offline install provisioned Mise"
 [[ ! -d "$XDG_DATA_HOME/zsh/plugins/zsh-autosuggestions/.git" ]] || fail "offline install downloaded plugins"

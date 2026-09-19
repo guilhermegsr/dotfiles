@@ -1,0 +1,4 @@
+# macOS ships zsh, git, curl, tar and ssh, and needs no fontconfig: fonts are
+# copied into ~/Library/Fonts directly. Alacritty is a cask, which this list
+# does not handle, so install it yourself:
+#     brew install --cask alacritty
