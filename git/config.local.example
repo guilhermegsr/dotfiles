@@ -1,9 +1,9 @@
 # ~/.config/git/config.local (untracked)
 
-[user]
-    name = Your Name
-    email = your.email@example.com
-    # signingkey = YOUR_GPG_OR_SSH_KEY_ID
+# [user]
+#     name = Your Name
+#     email = your.email@example.com
+#     signingkey = YOUR_GPG_OR_SSH_KEY_ID
 
 # [commit]
 #     gpgsign = true

@@ -479,6 +479,7 @@ credential_doctor_output '!/x/.local/share/mise/shims/gh auth git-credential' \
 pass "doctor flags credential helpers that gh breaks on upgrade"
 
 git config --file "$XDG_CONFIG_HOME/git/config" --add include.path /unrelated/include
+printf '%s\n' 'export MINE=1' >>"$XDG_CONFIG_HOME/zsh/local.zsh"
 
 mkdir -p "$XDG_STATE_HOME/dotfiles"
 mkdir -p "$XDG_CONFIG_HOME/mise"
@@ -546,6 +547,11 @@ pass "uninstall removes the legacy Mise lock symlink"
 git config --file "$XDG_CONFIG_HOME/git/config" --get-all include.path 2>/dev/null | grep -qxF "/unrelated/include" \
     || fail "uninstall dropped an include it did not write"
 pass "uninstall removes both includes the installer wrote, and only those"
+[[ -f "$XDG_CONFIG_HOME/zsh/local.zsh" ]] || fail "uninstall removed an edited local.zsh"
+grep -q 'export MINE=1' "$XDG_CONFIG_HOME/zsh/local.zsh" || fail "uninstall rewrote an edited local.zsh"
+[[ ! -e "$XDG_CONFIG_HOME/git/config.local" ]] || fail "uninstall kept an untouched Git identity template"
+[[ ! -e "$HOME/.ssh/config.local" ]] || fail "uninstall kept the empty SSH override it created"
+pass "uninstall drops untouched installer templates and keeps edited ones"
 [[ ! -e "$managed_plugin" ]] || fail "purge kept a recorded clean plugin"
 [[ -d "$dirty_plugin" ]] || fail "purge removed a plugin with local changes"
 [[ -d "$XDG_DATA_HOME/zsh/plugins/user-plugin" ]] || fail "purge removed an unregistered plugin"

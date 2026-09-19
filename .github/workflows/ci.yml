@@ -75,10 +75,14 @@ jobs:
         run: |
           ! test -L "$HOME/.config/zsh/.zshrc"
           ! test -L "$HOME/.zshenv"
-          ! git config --file "$HOME/.config/git/config" --get-all include.path | grep -qxF "$PWD/git/config"
           ! test -L "$HOME/.config/mise/config.toml"
           ! test -L "$HOME/.config/starship.toml"
           ! test -L "$HOME/.config/tmux"
           ! test -L "$HOME/.config/alacritty"
-          test -f "$HOME/.config/zsh/local.zsh"
-          test ! -L "$HOME/.config/zsh/local.zsh"
+          # This home held nothing of its own, so nothing of ours may survive.
+          ! test -e "$HOME/.config/git/config"
+          ! test -e "$HOME/.config/zsh/local.zsh"
+          ! test -e "$HOME/.config/git/config.local"
+          ! test -e "$HOME/.ssh/config.local"
+          ! test -e "$HOME/.config/zsh"
+          ! test -e "$HOME/.config/git"

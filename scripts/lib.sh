@@ -89,6 +89,34 @@ sweep_stale_staging() {
     done < <(find "$parent" -maxdepth 1 -type d -name "$pattern" -mmin +1440 2>/dev/null)
 }
 
+# The installer seeds a few files from an example so there is something to
+# edit. Until they are edited they carry nothing, and an uninstall that leaves
+# them behind is leaving its own litter.
+file_is_untouched_template() {
+    local target="$1"
+    local template="${2:-}"
+
+    [[ -f "$target" && ! -L "$target" ]] || return 1
+    if [[ -n "$template" ]]; then
+        cmp -s "$target" "$template"
+    else
+        [[ ! -s "$target" ]]
+    fi
+}
+
+remove_untouched_file() {
+    local target="$1"
+    local template="${2:-}"
+
+    [[ -e "$target" || -L "$target" ]] || return 0
+    if file_is_untouched_template "$target" "$template"; then
+        rm -f "$target"
+        success "Removed unmodified $target"
+    else
+        info "Keeping $target; it holds your own settings now"
+    fi
+}
+
 backup_if_exists() {
     local target="$1"
     if [[ -e "$target" || -L "$target" ]]; then

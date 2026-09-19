@@ -91,8 +91,10 @@ if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]]; then
             git config --file "$GIT_GLOBAL_CONFIG" --add include.path "$include_path"
         done
         success "Removed the dotfiles includes from $GIT_GLOBAL_CONFIG"
-        # The file stays: it is the one place that still holds an identity.
-        if [[ -s "$CONFIG_DIR/git/config.local" ]]; then
+        # An edited file stays: it is the one place that still holds an
+        # identity. An untouched template is dropped further down instead.
+        if ! file_is_untouched_template "$CONFIG_DIR/git/config.local" "$DOTFILES_DIR/git/config.local.example" \
+            && [[ -s "$CONFIG_DIR/git/config.local" ]]; then
             warn "$CONFIG_DIR/git/config.local is no longer read by Git, and still holds what you put there"
             warn "Keep it with: git config --global --add include.path config.local"
         fi
@@ -126,12 +128,25 @@ restore_latest_backup "$CONFIG_DIR/alacritty"
 unlink_file "$DOTFILES_DIR/ssh/config" "$HOME/.ssh/config"
 restore_latest_backup "$HOME/.ssh/config"
 
+section "Installer templates"
+remove_untouched_file "$CONFIG_DIR/zsh/local.zsh" "$DOTFILES_DIR/zsh/local.zsh.example"
+remove_untouched_file "$CONFIG_DIR/git/config.local" "$DOTFILES_DIR/git/config.local.example"
+remove_untouched_file "$HOME/.ssh/config.local"
+
+# Written by the installer only where the machine had no global config. With
+# our includes gone it can be left holding no settings at all.
+if [[ -f "$GIT_GLOBAL_CONFIG" && ! -L "$GIT_GLOBAL_CONFIG" ]] \
+    && [[ -z "$(git config --file "$GIT_GLOBAL_CONFIG" --list 2>/dev/null || true)" ]]; then
+    rm -f "$GIT_GLOBAL_CONFIG"
+    success "Removed $GIT_GLOBAL_CONFIG, which no longer configures anything"
+fi
+
 # rmdir refuses a directory that still holds anything, so overrides and
 # keys stay put.
 rmdir "$CONFIG_DIR/mise" "$CONFIG_DIR/git" "$CONFIG_DIR/zsh" \
     "$HOME/.ssh/sockets" "$HOME/.ssh/conf.d" \
     "$HOME/.ssh/keys/personal" "$HOME/.ssh/keys/work" "$HOME/.ssh/keys/servers" \
-    "$HOME/.ssh/keys" 2>/dev/null || true
+    "$HOME/.ssh/keys" "$HOME/.ssh" 2>/dev/null || true
 
 section "Fonts"
 FONT_DIR="$(dotfiles_font_dir "$DATA_DIR")"
