@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 configure_login_shell() {
     section "Login shell"
     ZSH_PATH="$(command -v zsh 2>/dev/null || true)"

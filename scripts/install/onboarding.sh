@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 offer_backup_restore() {
     section "Backup"
     if [[ ! -t 0 ]]; then

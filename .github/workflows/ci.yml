@@ -3,7 +3,13 @@ name: CI
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
+
+# The workflow only reads the checkout; nothing here needs a writable token.
+permissions:
+  contents: read
 
 jobs:
   validate:

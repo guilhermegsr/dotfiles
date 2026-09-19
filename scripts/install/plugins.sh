@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 record_managed_plugin() {
     local name="$1"
     local url="$2"

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 install_fonts() {
     section "Fonts"
     local font_dir

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 mise_target_is_managed() {
     local target="$1"
     local marker="$STATE_DIR/managed-mise"

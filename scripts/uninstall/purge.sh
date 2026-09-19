@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 purge_managed_plugins() {
     local manifest="$STATE_DIR/installed-plugins"
     local plugin_root="$DATA_DIR/zsh/plugins"

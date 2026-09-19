@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Legacy installs symlinked whole config directories; secrets must remain outside the repo.
 ensure_config_dir() {
     local dest="$1"
